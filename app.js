@@ -41,6 +41,7 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
   initTelegram();
   renderScreen('home');
+  showOfferIfNeeded();
 });
 
 // Инициализация Telegram WebApp
@@ -1452,6 +1453,50 @@ function formatDateFull(date) {
                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const day = getDayName(date);
   return `${date.getDate()} ${months[date.getMonth()]}, ${day}`;
+}
+
+// ============================================================
+// ОФФЕР ПРИ ПЕРВОМ ОТКРЫТИИ
+// ============================================================
+
+function showOfferIfNeeded() {
+  if (localStorage.getItem('offerShown')) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'offer-overlay';
+  overlay.innerHTML = `
+    <div class="offer-card">
+      <div class="offer-emoji">🎁</div>
+      <div class="offer-title">Скидка 20% на первую запись</div>
+      <div class="offer-subtitle">Подпишитесь на бота — получите промокод в личное сообщение</div>
+      <ul class="offer-bullets">
+        <li>Напомним о записи за день</li>
+        <li>Первыми узнаёте о свободных окошках</li>
+        <li>Эксклюзивные акции для подписчиков</li>
+      </ul>
+      <a href="https://t.me/LaserTimeKrdBot?start=from_app" target="_blank" class="offer-btn">Получить скидку 20%</a>
+      <button class="offer-skip" id="offerSkipBtn">Пропустить</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Анимация появления
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  const closeOffer = () => {
+    localStorage.setItem('offerShown', '1');
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 300);
+  };
+
+  overlay.querySelector('#offerSkipBtn').addEventListener('click', closeOffer);
+  overlay.querySelector('.offer-btn').addEventListener('click', () => {
+    closeOffer();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeOffer();
+  });
 }
 
 // ============================================================
