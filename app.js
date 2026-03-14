@@ -40,8 +40,12 @@ const state = {
 // Запуск при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
   initTelegram();
-  renderScreen('home');
-  showOfferIfNeeded();
+  if (!localStorage.getItem('onboardingDone')) {
+    showOnboarding();
+  } else {
+    renderScreen('home');
+    showOfferIfNeeded();
+  }
 });
 
 // Инициализация Telegram WebApp
@@ -318,6 +322,10 @@ function renderHome() {
 
     <button class="home-history-btn home-abonement-btn" id="homeAbonementBtn">
       <span class="home-booking-btn-icon">🏷️</span> Абонементы
+    </button>
+
+    <button class="home-history-btn home-share-btn" id="homeShareBtn">
+      <span class="home-booking-btn-icon">💌</span> Поделиться с другом
     </button>
 
     <div class="reviews-section">
@@ -1131,6 +1139,21 @@ function bindEvents(screenName, container) {
         });
       }
 
+      // Кнопка «Поделиться с другом»
+      const shareBtn = container.querySelector('#homeShareBtn');
+      if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+          const shareText = 'Привет! Посмотри Лазер Тайм — лазерная эпиляция и косметология. Записаться можно прямо в Telegram:';
+          const shareUrl = 'https://t.me/lasertime_prilo_bot';
+          if (tg) {
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`);
+          } else {
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, '_blank');
+          }
+          haptic('impact', 'light');
+        });
+      }
+
       // Вкладка «Мастер»
       const roleMasterBtn = container.querySelector('#roleMaster');
       if (roleMasterBtn) {
@@ -1453,6 +1476,37 @@ function formatDateFull(date) {
                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const day = getDayName(date);
   return `${date.getDate()} ${months[date.getMonth()]}, ${day}`;
+}
+
+// ============================================================
+// ОНБОРДИНГ (ПРИВЕТСТВИЕ)
+// ============================================================
+
+function showOnboarding() {
+  const tgUser = tg?.initDataUnsafe?.user;
+  const firstName = tgUser?.first_name || '';
+  const greeting = firstName ? `Привет, ${firstName}!` : 'Привет!';
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="onboarding-screen">
+      <div class="onboarding-emoji">✨</div>
+      <div class="onboarding-title">${greeting}</div>
+      <div class="onboarding-subtitle">Добро пожаловать в Лазер Тайм</div>
+      <ul class="onboarding-list">
+        <li>Выбирайте услуги из каталога и записывайтесь онлайн</li>
+        <li>Копите бонусы — 3% с каждого визита</li>
+        <li>Получайте напоминания и эксклюзивные скидки</li>
+      </ul>
+      <button class="onboarding-btn" id="onboardingStartBtn">Начать</button>
+    </div>
+  `;
+
+  document.getElementById('onboardingStartBtn').addEventListener('click', () => {
+    localStorage.setItem('onboardingDone', '1');
+    renderScreen('home');
+    showOfferIfNeeded();
+  });
 }
 
 // ============================================================
