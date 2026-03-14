@@ -619,7 +619,12 @@ function renderMasterPanel() {
   `;
 
   const todayListHTML = todayBookings.length
-    ? todayBookings.map(b => `
+    ? todayBookings.map((b) => {
+        const idx = bookings.indexOf(b);
+        const statusHTML = b.confirmed
+          ? '<span class="master-confirmed-badge">Визит подтверждён</span>'
+          : `<button class="master-confirm-visit-btn" data-index="${idx}">Подтвердить визит</button>`;
+        return `
         <div class="history-card">
           <div class="history-card-header">
             <span class="history-card-name">${b.serviceName}</span>
@@ -628,12 +633,18 @@ function renderMasterPanel() {
           <div class="history-card-details">
             <span>🕐 ${b.time}</span>
           </div>
+          ${statusHTML}
         </div>
-      `).join('')
+      `;
+      }).join('')
     : '<div class="history-empty">На сегодня записей нет</div>';
 
   const allListHTML = bookings.length
-    ? bookings.map(b => `
+    ? bookings.map((b, idx) => {
+        const statusHTML = b.confirmed
+          ? '<span class="master-confirmed-badge">Визит подтверждён</span>'
+          : `<button class="master-confirm-visit-btn" data-index="${idx}">Подтвердить визит</button>`;
+        return `
         <div class="history-card">
           <div class="history-card-header">
             <span class="history-card-name">${b.serviceName}</span>
@@ -642,8 +653,10 @@ function renderMasterPanel() {
           <div class="history-card-details">
             <span>📅 ${b.date}, ${b.time}</span>
           </div>
+          ${statusHTML}
         </div>
-      `).join('')
+      `;
+      }).join('')
     : '<div class="history-empty">Пока нет записей</div>';
 
   return `
@@ -1030,11 +1043,9 @@ function submitBooking() {
     date: state.selectedDate,
     time: state.selectedTime,
     price: service.salePrice || service.price,
+    confirmed: false,
   });
   localStorage.setItem('bookingHistory', JSON.stringify(history));
-
-  // Начисляем бонус 3% от стоимости
-  addBonus(service.salePrice || service.price);
 
   // TODO: отправить bookingData на бэкенд (Google Apps Script)
   // fetch(API_URL, { method: 'POST', body: JSON.stringify(bookingData) })
@@ -1176,6 +1187,22 @@ function bindEvents(screenName, container) {
           navigateTo('home');
         });
       }
+      // Кнопки подтверждения визита
+      container.querySelectorAll('.master-confirm-visit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.index);
+          const history = JSON.parse(localStorage.getItem('bookingHistory') || '[]');
+          if (history[idx] && !history[idx].confirmed) {
+            history[idx].confirmed = true;
+            localStorage.setItem('bookingHistory', JSON.stringify(history));
+            addBonus(history[idx].price);
+            haptic('notification', 'success');
+            // Перерендер панели
+            state.currentScreen = '_refresh';
+            navigateTo('masterPanel', false);
+          }
+        });
+      });
       break;
 
     case 'catalog':
