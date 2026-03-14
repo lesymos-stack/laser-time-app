@@ -851,7 +851,7 @@ function renderService() {
     <div class="detail-description-title">Описание</div>
     <div class="detail-description">${service.description}</div>
 
-    <button class="booking-confirm-btn" id="serviceBookBtn">Записаться</button>
+    ${!tg ? '<button class="booking-confirm-btn" id="serviceBookBtn">Записаться</button>' : ''}
   `;
 }
 
@@ -1006,7 +1006,7 @@ function renderSuccess() {
       <div class="success-hint">Напоминание придёт за 24 часа в этот чат</div>
       <div class="success-hint">Нужно перенести? Напишите в чат бота.</div>
 
-      <button class="booking-confirm-btn" id="successHomeBtn">На главную</button>
+      ${!tg ? '<button class="booking-confirm-btn" id="successHomeBtn">На главную</button>' : ''}
     </div>
   `;
 }
