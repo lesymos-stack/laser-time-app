@@ -1504,6 +1504,8 @@ function showOnboarding() {
 
   document.getElementById('onboardingStartBtn').addEventListener('click', () => {
     localStorage.setItem('onboardingDone', '1');
+    // Очищаем онбординг перед показом главного экрана
+    document.getElementById('app').innerHTML = '';
     renderScreen('home');
     showOfferIfNeeded();
   });
