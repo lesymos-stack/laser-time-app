@@ -991,6 +991,8 @@ function renderSuccess() {
 
       <div class="success-hint">Напоминание придёт за 24 часа в этот чат</div>
       <div class="success-hint">Нужно перенести? Напишите в чат бота.</div>
+
+      <button class="booking-confirm-btn" id="successHomeBtn">На главную</button>
     </div>
   `;
 }
@@ -1254,6 +1256,16 @@ function bindEvents(screenName, container) {
           if (state.selectedDate && state.selectedTime) {
             submitBooking();
           }
+        });
+      }
+      break;
+
+    case 'success':
+      const successHomeBtn = container.querySelector('#successHomeBtn');
+      if (successHomeBtn) {
+        successHomeBtn.addEventListener('click', () => {
+          state.screenHistory = [];
+          navigateTo('home', false);
         });
       }
       break;
