@@ -836,6 +836,8 @@ function renderService() {
 
     <div class="detail-description-title">Описание</div>
     <div class="detail-description">${service.description}</div>
+
+    <button class="booking-confirm-btn" id="serviceBookBtn">Записаться</button>
   `;
 }
 
@@ -895,7 +897,7 @@ function renderBooking() {
       ${timeSlotsHTML}
     </div>
 
-    <button class="booking-confirm-btn hidden" id="bookingConfirmBtn">Записаться</button>
+    <button class="booking-confirm-btn disabled" id="bookingConfirmBtn" disabled>Выберите дату и время</button>
   `;
 }
 
@@ -932,9 +934,13 @@ function updateTimeSlots() {
       container.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
       slot.classList.add('selected');
 
-      // Показываем кнопку «Записаться» (ищем в DOM на момент клика)
+      // Активируем кнопку «Записаться» (ищем в DOM на момент клика)
       const confirmBtn = document.querySelector('#bookingConfirmBtn');
-      if (confirmBtn) confirmBtn.classList.remove('hidden');
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.classList.remove('disabled');
+        confirmBtn.textContent = 'Записаться';
+      }
 
       // Активируем MainButton
       updateTelegramButtons('booking');
@@ -1184,6 +1190,15 @@ function bindEvents(screenName, container) {
     case 'service':
       // Свайп галереи
       initGallerySwipe(container);
+      // Кнопка «Записаться» на экране услуги
+      const serviceBookBtn = container.querySelector('#serviceBookBtn');
+      if (serviceBookBtn) {
+        serviceBookBtn.addEventListener('click', () => {
+          state.selectedDate = null;
+          state.selectedTime = null;
+          navigateTo('booking');
+        });
+      }
       break;
 
     case 'booking':
@@ -1200,8 +1215,12 @@ function bindEvents(screenName, container) {
           container.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
           chip.classList.add('selected');
 
-          // Скрываем кнопку при смене даты
-          if (confirmBtn) confirmBtn.classList.add('hidden');
+          // Деактивируем кнопку при смене даты
+          if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.classList.add('disabled');
+            confirmBtn.textContent = 'Выберите время';
+          }
 
           // Обновляем слоты
           updateTimeSlots();
@@ -1218,8 +1237,12 @@ function bindEvents(screenName, container) {
           container.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
           slot.classList.add('selected');
 
-          // Показываем кнопку
-          if (confirmBtn) confirmBtn.classList.remove('hidden');
+          // Активируем кнопку
+          if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.classList.remove('disabled');
+            confirmBtn.textContent = 'Записаться';
+          }
 
           updateTelegramButtons('booking');
         });

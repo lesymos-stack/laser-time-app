@@ -1020,6 +1020,12 @@ img {
   display: none;
 }
 
+.booking-confirm-btn.disabled {
+  background: #999;
+  cursor: default;
+  opacity: 0.7;
+}
+
 /* Горизонтальная прокрутка дат */
 .date-picker {
   display: flex;
