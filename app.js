@@ -1474,7 +1474,7 @@ function showOfferIfNeeded() {
         <li>Первыми узнаёте о свободных окошках</li>
         <li>Эксклюзивные акции для подписчиков</li>
       </ul>
-      <a href="https://t.me/LaserTimeKrdBot?start=from_app" target="_blank" class="offer-btn">Получить скидку 20%</a>
+      <a href="https://t.me/lasertime_prilo_bot?profile" target="_blank" class="offer-btn">Получить скидку 20%</a>
       <button class="offer-skip" id="offerSkipBtn">Пропустить</button>
     </div>
   `;
