@@ -900,7 +900,7 @@ function renderBooking() {
 }
 
 // Обновить слоты времени (без перерендера всего экрана)
-function updateTimeSlots(screenContainer) {
+function updateTimeSlots() {
   const container = document.getElementById('timeContainer');
   if (!container) return;
 
@@ -922,8 +922,6 @@ function updateTimeSlots(screenContainer) {
     return `<div class="time-slot ${cls}" data-time="${time}">${time}</div>`;
   }).join('') + '</div>';
 
-  const confirmBtn = screenContainer ? screenContainer.querySelector('#bookingConfirmBtn') : document.querySelector('#bookingConfirmBtn');
-
   // Привязываем обработчики на новые слоты
   container.querySelectorAll('.time-slot:not(.booked)').forEach(slot => {
     slot.addEventListener('click', () => {
@@ -934,7 +932,8 @@ function updateTimeSlots(screenContainer) {
       container.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
       slot.classList.add('selected');
 
-      // Показываем кнопку «Записаться»
+      // Показываем кнопку «Записаться» (ищем в DOM на момент клика)
+      const confirmBtn = document.querySelector('#bookingConfirmBtn');
       if (confirmBtn) confirmBtn.classList.remove('hidden');
 
       // Активируем MainButton
@@ -1205,7 +1204,7 @@ function bindEvents(screenName, container) {
           if (confirmBtn) confirmBtn.classList.add('hidden');
 
           // Обновляем слоты
-          updateTimeSlots(container);
+          updateTimeSlots();
           updateTelegramButtons('booking');
         });
       });
@@ -1429,10 +1428,12 @@ function updateFallbackBackButton(screenName) {
         };
         break;
       case 'booking':
-        if (state.selectedDate && state.selectedTime) {
-          btnText = 'ПОДТВЕРДИТЬ';
-          btnAction = () => submitBooking();
-        }
+        btnText = 'ПОДТВЕРДИТЬ';
+        btnAction = () => {
+          if (state.selectedDate && state.selectedTime) {
+            submitBooking();
+          }
+        };
         break;
       case 'success':
         btnText = 'ЗАКРЫТЬ';
