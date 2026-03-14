@@ -1,22 +1,8 @@
 /**
  * styles.css — Стили Telegram Mini App
  *
+ * Нативный iOS/Telegram дизайн.
  * Все цвета берутся из CSS-переменных Telegram (--tg-theme-*).
- * Приложение автоматически адаптируется к светлой и тёмной теме.
- *
- * Структура файла:
- * 1. Сброс и базовые стили
- * 2. Экраны и переходы
- * 3. Шапка мастера (главная)
- * 4. Сетка категорий
- * 5. Баннер акции
- * 6. Карточки услуг (каталог)
- * 7. Детали услуги
- * 8. Галерея фото
- * 9. Экран записи (дата/время)
- * 10. Экран успеха
- * 11. Skeleton-загрузки
- * 12. Вспомогательные классы
  */
 
 /* ==============================
@@ -34,11 +20,13 @@ html, body {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 16px;
   line-height: 1.4;
   color: var(--tg-theme-text-color, #000000);
-  background-color: var(--tg-theme-bg-color, #ffffff);
+  background-color: var(--tg-theme-secondary-bg-color, #f2f2f7);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -46,7 +34,7 @@ body {
 }
 
 a {
-  color: var(--tg-theme-link-color, #2AABEE);
+  color: var(--tg-theme-link-color, #007AFF);
   text-decoration: none;
 }
 
@@ -72,13 +60,12 @@ img {
   left: 0;
   width: 100%;
   min-height: 100vh;
-  background-color: var(--tg-theme-bg-color, #ffffff);
+  background-color: var(--tg-theme-secondary-bg-color, #f2f2f7);
   opacity: 0;
   pointer-events: none;
   transform: translateX(30px);
   transition: opacity 250ms ease-out, transform 250ms ease-out;
-  padding: 16px;
-  padding-bottom: 80px; /* место для MainButton */
+  padding: 0 16px 80px;
   overflow-y: auto;
 }
 
@@ -98,9 +85,12 @@ img {
 /* --- ВКЛАДКИ КЛИЕНТ/МАСТЕР --- */
 .role-tabs {
   display: flex;
-  margin: -16px -16px 0 -16px;
+  margin: 0 -16px;
   background: var(--tg-theme-bg-color, #fff);
-  border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #e0e0e0);
+  border-bottom: 0.5px solid var(--tg-theme-secondary-bg-color, #e5e5ea);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .role-tab {
@@ -108,44 +98,46 @@ img {
   padding: 12px 0;
   font-size: 15px;
   font-weight: 500;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 2.5px solid transparent;
   cursor: pointer;
   transition: all 200ms;
+  font-family: inherit;
 }
 
 .role-tab.active {
   color: var(--tg-theme-text-color, #000);
-  border-bottom-color: var(--tg-theme-button-color, #2AABEE);
+  border-bottom-color: var(--tg-theme-button-color, #007AFF);
   font-weight: 600;
 }
 
 /* ==============================
-   3. ШАПКА МАСТЕРА (ГЛАВНАЯ)
+   3. ШАПКА МАСТЕРА
    ============================== */
 
 .master-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px;
-  margin: -16px -16px 20px -16px;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  padding: 20px 16px;
+  margin: 0 -16px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .master-avatar {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
+  font-weight: 600;
   color: var(--tg-theme-button-text-color, #ffffff);
   flex-shrink: 0;
   overflow: hidden;
@@ -163,14 +155,15 @@ img {
 }
 
 .master-name {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--tg-theme-text-color, #000000);
+  letter-spacing: -0.3px;
 }
 
 .master-desc {
-  font-size: 13px;
-  color: var(--tg-theme-hint-color, #999999);
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-top: 2px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -184,29 +177,29 @@ img {
 
 .contact-buttons {
   display: flex;
-  justify-content: center;
   gap: 10px;
-  margin-bottom: 20px;
+  margin: 16px 0;
 }
 
 .contact-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 20px;
-  border-radius: 10px;
-  font-size: 13px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 120ms ease, opacity 120ms ease;
   -webkit-user-select: none;
   user-select: none;
 }
 
 .contact-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
   opacity: 0.85;
 }
 
@@ -216,12 +209,12 @@ img {
 }
 
 .contact-btn-write {
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   color: var(--tg-theme-button-text-color, #ffffff);
 }
 
 .contact-btn-icon {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 /* ==============================
@@ -229,35 +222,36 @@ img {
    ============================== */
 
 .section-title {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 12px;
+  margin: 20px 0 10px;
+  padding-left: 4px;
 }
 
 .categories-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .category-card {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 14px;
-  padding: 18px 14px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 16px;
+  padding: 20px 14px;
   text-align: center;
   cursor: pointer;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 120ms ease, opacity 120ms ease;
   -webkit-user-select: none;
   user-select: none;
 }
 
 .category-card:active {
   transform: scale(0.96);
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
 .category-icon {
@@ -274,8 +268,8 @@ img {
 
 .category-count {
   font-size: 13px;
-  color: var(--tg-theme-hint-color, #999999);
-  margin-top: 2px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-top: 3px;
 }
 
 /* ==============================
@@ -284,13 +278,14 @@ img {
 
 .promo-banner {
   background: linear-gradient(135deg, #FF6B35, #FF8F5E);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 16px;
+  padding: 18px 20px;
   color: #ffffff;
   cursor: pointer;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 120ms ease, opacity 120ms ease;
   -webkit-user-select: none;
   user-select: none;
+  margin-bottom: 16px;
 }
 
 .promo-banner:active {
@@ -302,104 +297,103 @@ img {
   display: inline-block;
   background: rgba(255, 255, 255, 0.25);
   border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 12px;
+  padding: 3px 9px;
+  font-size: 11px;
   font-weight: 700;
   margin-bottom: 8px;
+  letter-spacing: 0.3px;
 }
 
 .promo-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
 }
 
 .promo-text {
-  font-size: 13px;
+  font-size: 14px;
   opacity: 0.9;
   margin-top: 4px;
 }
 
 /* ==============================
-   5.1. КНОПКА «ВЫБРАТЬ ДАТУ» (ГЛАВНАЯ)
+   5.1. КНОПКИ ДЕЙСТВИЙ (ГЛАВНАЯ)
    ============================== */
 
 .home-booking-section {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .home-booking-btn {
-  width: 50%;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 0;
-  border-radius: 12px;
+  padding: 15px 0;
+  border-radius: 14px;
   border: none;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   color: var(--tg-theme-button-text-color, #ffffff);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 120ms ease, opacity 120ms ease;
   -webkit-user-select: none;
   user-select: none;
 }
 
 .home-booking-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
   opacity: 0.85;
 }
 
 .home-booking-btn.active {
-  border-radius: 12px 12px 0 0;
+  border-radius: 14px 14px 0 0;
 }
 
 .home-booking-btn-icon {
-  font-size: 16px;
+  font-size: 17px;
 }
 
+/* --- Группа кнопок: история, бонусы, абонементы, поделиться --- */
 .home-history-btn {
-  width: 50%;
-  margin: 12px auto 0;
+  width: 100%;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 0;
-  border-radius: 12px;
-  border: 2px solid var(--tg-theme-button-color, #2AABEE);
-  background: transparent;
-  color: var(--tg-theme-button-color, #2AABEE);
-  font-size: 15px;
-  font-weight: 600;
+  padding: 15px 20px;
+  border-radius: 14px;
+  border: none;
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000);
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 120ms ease, opacity 120ms ease;
   -webkit-user-select: none;
   user-select: none;
 }
 
 .home-history-btn:active {
-  transform: scale(0.97);
-  opacity: 0.85;
+  transform: scale(0.98);
+  opacity: 0.8;
 }
 
 .home-bonus-btn {
-  border-color: #f5a623;
-  color: #f5a623;
+  /* наследует от home-history-btn */
 }
 
 .home-abonement-btn {
-  border-color: #5856d6;
-  color: #5856d6;
+  /* наследует от home-history-btn */
 }
 
 .home-calendar {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 0 0 12px 12px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 0 0 14px 14px;
   padding: 16px;
   transition: max-height 300ms ease;
 }
@@ -411,21 +405,24 @@ img {
 /* --- БЛОК ОТЗЫВОВ --- */
 .reviews-section {
   margin-top: 20px;
-  padding: 0 16px 16px;
+  padding-bottom: 16px;
 }
 
 .reviews-title {
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--tg-theme-text-color, #000);
-  margin-bottom: 12px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-left: 4px;
 }
 
 .review-card {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 12px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
   padding: 14px 16px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .review-header {
@@ -442,36 +439,37 @@ img {
 }
 
 .review-stars {
-  color: #f5a623;
+  color: #FF9500;
   font-size: 14px;
   letter-spacing: 1px;
 }
 
 .review-text {
   font-size: 14px;
-  line-height: 1.4;
-  color: var(--tg-theme-hint-color, #999);
+  line-height: 1.45;
+  color: var(--tg-theme-hint-color, #8e8e93);
 }
 
 /* --- ЭКРАН ИСТОРИИ ПОСЕЩЕНИЙ --- */
 .history-screen {
-  padding: 16px;
+  padding: 0;
 }
 
 .history-title {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--tg-theme-text-color, #000);
-  margin-top: 40px;
-  margin-bottom: 16px;
+  margin-top: 20px;
+  margin-bottom: 20px;
   text-align: center;
+  letter-spacing: -0.5px;
 }
 
 .history-card {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 12px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
   padding: 14px 16px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .history-card-header {
@@ -490,29 +488,29 @@ img {
 .history-card-price {
   font-weight: 600;
   font-size: 15px;
-  color: var(--tg-theme-button-color, #2AABEE);
+  color: var(--tg-theme-button-color, #007AFF);
 }
 
 .history-card-details {
   font-size: 13px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
 }
 
 .history-empty {
   text-align: center;
   padding: 40px 20px;
   font-size: 15px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   line-height: 1.5;
 }
 
 /* --- БОНУСЫ --- */
 .bonus-balance-card {
-  background: linear-gradient(135deg, #f5a623, #f7c948);
+  background: linear-gradient(135deg, #FF9500, #FFCC00);
   border-radius: 16px;
-  padding: 24px;
+  padding: 28px 24px;
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   color: #fff;
 }
 
@@ -523,8 +521,9 @@ img {
 }
 
 .bonus-balance-value {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
+  letter-spacing: -1px;
 }
 
 .bonus-balance-hint {
@@ -534,22 +533,26 @@ img {
 }
 
 .bonus-history-title {
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--tg-theme-text-color, #000);
-  margin-bottom: 12px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-left: 4px;
 }
 
 .bonus-plus {
-  color: #34c759 !important;
+  color: #34C759 !important;
 }
 
 /* --- АБОНЕМЕНТЫ --- */
 .abonement-info {
   font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   text-align: center;
   margin-bottom: 20px;
+  line-height: 1.5;
 }
 
 .abonement-section-title {
@@ -562,15 +565,15 @@ img {
 
 .abonement-section-sub {
   font-size: 13px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-bottom: 12px;
 }
 
 .abonement-card {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 12px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
   padding: 14px 16px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .abonement-card-header {
@@ -587,7 +590,7 @@ img {
 }
 
 .abonement-card-badge {
-  background: #5856d6;
+  background: #5856D6;
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -604,7 +607,7 @@ img {
 
 .abonement-old-price {
   font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   text-decoration: line-through;
 }
 
@@ -616,13 +619,13 @@ img {
 
 .abonement-card-saving {
   font-size: 13px;
-  color: #34c759;
+  color: #34C759;
   font-weight: 600;
 }
 
 .abonement-hint {
   font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   text-align: center;
   margin-top: 16px;
   padding: 0 8px;
@@ -632,35 +635,39 @@ img {
 .master-stats {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .master-stat-card {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 12px;
-  padding: 14px 8px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
+  padding: 16px 8px;
   text-align: center;
 }
 
 .master-stat-value {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--tg-theme-text-color, #000);
+  letter-spacing: -0.3px;
 }
 
 .master-stat-label {
   font-size: 11px;
-  color: var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-top: 4px;
 }
 
 .master-section-title {
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--tg-theme-text-color, #000);
+  color: var(--tg-theme-hint-color, #8e8e93);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 10px;
   margin-top: 16px;
+  padding-left: 4px;
 }
 
 /* --- ЭКРАН ВХОДА МАСТЕРА --- */
@@ -668,7 +675,7 @@ img {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 20px;
+  padding: 60px 20px 40px;
 }
 
 .master-login-icon {
@@ -677,39 +684,41 @@ img {
 }
 
 .master-login-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--tg-theme-text-color, #000);
   margin-bottom: 8px;
+  letter-spacing: -0.3px;
 }
 
 .master-login-hint {
-  font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
-  margin-bottom: 24px;
+  font-size: 15px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-bottom: 28px;
 }
 
 .master-login-input {
   width: 100%;
   max-width: 240px;
   padding: 14px 16px;
-  font-size: 18px;
+  font-size: 20px;
   text-align: center;
-  letter-spacing: 6px;
-  border: 2px solid var(--tg-theme-secondary-bg-color, #e0e0e0);
-  border-radius: 12px;
-  background: var(--tg-theme-bg-color, #fff);
+  letter-spacing: 8px;
+  border: none;
+  border-radius: 14px;
+  background: var(--tg-theme-bg-color, #ffffff);
   color: var(--tg-theme-text-color, #000);
   outline: none;
-  transition: border-color 200ms;
+  transition: box-shadow 200ms;
+  font-family: inherit;
 }
 
 .master-login-input:focus {
-  border-color: var(--tg-theme-button-color, #2AABEE);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
 }
 
 .master-login-error {
-  color: #ff3b30;
+  color: #FF3B30;
   font-size: 14px;
   margin-top: 12px;
   font-weight: 500;
@@ -723,15 +732,16 @@ img {
   margin-top: 20px;
   width: 100%;
   max-width: 240px;
-  padding: 14px;
-  font-size: 16px;
+  padding: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: #fff;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: opacity 200ms;
+  transition: opacity 120ms;
+  font-family: inherit;
 }
 
 .master-login-btn:active {
@@ -743,28 +753,29 @@ img {
    ============================== */
 
 .catalog-header {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   margin-bottom: 16px;
-  margin-top: 36px;
+  margin-top: 20px;
   text-align: center;
   color: var(--tg-theme-text-color, #000000);
+  letter-spacing: -0.5px;
 }
 
 .services-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .service-card {
   display: flex;
   gap: 14px;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 14px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 16px;
   padding: 14px;
   cursor: pointer;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition: transform 120ms ease, opacity 120ms ease;
   -webkit-user-select: none;
   user-select: none;
   position: relative;
@@ -773,18 +784,18 @@ img {
 
 .service-card:active {
   transform: scale(0.98);
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
 .service-thumb {
-  width: 76px;
-  height: 76px;
-  border-radius: 12px;
-  background: var(--tg-theme-bg-color, #ffffff);
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  background: var(--tg-theme-secondary-bg-color, #f2f2f7);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: 30px;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -804,15 +815,15 @@ img {
 }
 
 .service-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--tg-theme-text-color, #000000);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .service-duration {
   font-size: 13px;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-bottom: 6px;
 }
 
@@ -830,18 +841,18 @@ img {
 
 .service-old-price {
   font-size: 14px;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   text-decoration: line-through;
 }
 
 .sale-badge {
   display: inline-block;
-  background: #FF6B35;
+  background: #FF3B30;
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
-  border-radius: 6px;
-  padding: 2px 6px;
+  border-radius: 8px;
+  padding: 3px 7px;
   position: absolute;
   top: 10px;
   right: 10px;
@@ -852,11 +863,12 @@ img {
    ============================== */
 
 .detail-gallery {
-  margin: -16px -16px 0 -16px;
+  margin: 0 -16px;
   height: 220px;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  background: var(--tg-theme-bg-color, #ffffff);
   position: relative;
   overflow: hidden;
+  border-radius: 0 0 20px 20px;
 }
 
 .gallery-container {
@@ -872,7 +884,7 @@ img {
   align-items: center;
   justify-content: center;
   font-size: 64px;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  background: var(--tg-theme-bg-color, #ffffff);
 }
 
 .gallery-slide img {
@@ -885,43 +897,54 @@ img {
   display: flex;
   justify-content: center;
   gap: 6px;
-  padding: 12px 0;
+  padding: 14px 0;
 }
 
 .gallery-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--tg-theme-hint-color, #cccccc);
-  opacity: 0.4;
-  transition: opacity 200ms ease;
+  opacity: 0.35;
+  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .gallery-dot.active {
   opacity: 1;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
+  transform: scale(1.2);
 }
 
 .detail-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  margin: 4px 0 16px 0;
+  margin: 8px 0 16px 0;
   text-align: center;
   color: var(--tg-theme-text-color, #000000);
+  letter-spacing: -0.3px;
 }
 
 .detail-meta {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 0;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
+  padding: 4px 16px;
+  margin-bottom: 16px;
 }
 
 .detail-meta-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 16px;
+  padding: 13px 0;
+  border-bottom: 0.5px solid var(--tg-theme-secondary-bg-color, #e5e5ea);
+}
+
+.detail-meta-item:last-child {
+  border-bottom: none;
 }
 
 .detail-meta-icon {
@@ -940,13 +963,13 @@ img {
 }
 
 .detail-meta-value.sale {
-  color: #FF6B35;
+  color: #FF3B30;
 }
 
 .detail-meta-value .old-price {
   font-size: 15px;
   font-weight: 400;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   text-decoration: line-through;
   margin-left: 8px;
 }
@@ -956,15 +979,18 @@ img {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-bottom: 8px;
+  padding-left: 4px;
 }
 
 .detail-description {
   font-size: 15px;
   color: var(--tg-theme-text-color, #000000);
-  line-height: 1.5;
-  opacity: 0.85;
+  line-height: 1.55;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
+  padding: 14px 16px;
 }
 
 /* ==============================
@@ -972,29 +998,32 @@ img {
    ============================== */
 
 .booking-summary {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  background: var(--tg-theme-bg-color, #ffffff);
   border-radius: 14px;
   padding: 14px 16px;
-  margin-bottom: 24px;
+  margin: 16px 0 20px;
 }
 
 .booking-summary-name {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--tg-theme-text-color, #000000);
 }
 
 .booking-summary-meta {
   font-size: 14px;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-top: 4px;
 }
 
 .booking-section-title {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--tg-theme-text-color, #000000);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-bottom: 12px;
+  padding-left: 4px;
 }
 
 .booking-confirm-btn {
@@ -1002,14 +1031,15 @@ img {
   width: 100%;
   padding: 16px;
   margin-top: 24px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   color: #fff;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: opacity 200ms;
+  transition: opacity 120ms;
+  font-family: inherit;
 }
 
 .booking-confirm-btn:active {
@@ -1021,23 +1051,25 @@ img {
 }
 
 .booking-confirm-btn.disabled {
-  background: #999;
+  background: var(--tg-theme-hint-color, #8e8e93);
   cursor: default;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .master-confirm-visit-btn {
   display: block;
   width: 100%;
   margin-top: 8px;
-  padding: 10px;
-  font-size: 14px;
+  padding: 12px;
+  font-size: 15px;
   font-weight: 600;
   color: #fff;
-  background: #4CAF50;
+  background: #34C759;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
+  font-family: inherit;
+  transition: opacity 120ms;
 }
 
 .master-confirm-visit-btn:active {
@@ -1050,7 +1082,7 @@ img {
   padding: 8px 0;
   font-size: 13px;
   font-weight: 600;
-  color: #4CAF50;
+  color: #34C759;
   text-align: center;
 }
 
@@ -1063,13 +1095,15 @@ img {
   right: 0;
   bottom: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   opacity: 0;
   transition: opacity 300ms ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .offer-overlay.visible {
@@ -1105,11 +1139,12 @@ img {
   color: var(--tg-theme-text-color, #000);
   margin-bottom: 8px;
   line-height: 1.3;
+  letter-spacing: -0.3px;
 }
 
 .offer-subtitle {
-  font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
+  font-size: 15px;
+  color: var(--tg-theme-hint-color, #8e8e93);
   margin-bottom: 20px;
   line-height: 1.5;
 }
@@ -1122,10 +1157,10 @@ img {
 }
 
 .offer-bullets li {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--tg-theme-text-color, #333);
-  padding: 6px 0;
-  padding-left: 20px;
+  padding: 7px 0;
+  padding-left: 24px;
   position: relative;
   line-height: 1.4;
 }
@@ -1133,8 +1168,8 @@ img {
 .offer-bullets li::before {
   content: '•';
   position: absolute;
-  left: 4px;
-  color: #2AABEE;
+  left: 6px;
+  color: var(--tg-theme-button-color, #007AFF);
   font-weight: 700;
 }
 
@@ -1142,18 +1177,19 @@ img {
   display: block;
   width: 100%;
   padding: 16px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   color: #fff;
-  background: #2AABEE;
+  background: var(--tg-theme-button-color, #007AFF);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
   text-decoration: none;
   text-align: center;
-  min-height: 48px;
+  min-height: 50px;
   line-height: 1;
-  transition: opacity 200ms;
+  transition: opacity 120ms;
+  font-family: inherit;
 }
 
 .offer-btn:active {
@@ -1165,11 +1201,12 @@ img {
   width: 100%;
   margin-top: 12px;
   padding: 10px;
-  font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
+  font-size: 15px;
+  color: var(--tg-theme-hint-color, #8e8e93);
   background: none;
   border: none;
   cursor: pointer;
+  font-family: inherit;
 }
 
 .offer-skip:active {
@@ -1195,11 +1232,11 @@ img {
   flex-shrink: 0;
   width: 68px;
   padding: 10px 0;
-  border-radius: 12px;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  border-radius: 14px;
+  background: var(--tg-theme-bg-color, #ffffff);
   text-align: center;
   cursor: pointer;
-  transition: background 200ms ease, color 200ms ease, transform 150ms ease;
+  transition: background 200ms ease, color 200ms ease, transform 120ms ease;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -1209,14 +1246,14 @@ img {
 }
 
 .date-chip.selected {
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   color: var(--tg-theme-button-text-color, #ffffff);
 }
 
 .date-chip-day {
   font-size: 12px;
   font-weight: 600;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .date-chip.selected .date-chip-day {
@@ -1231,7 +1268,7 @@ img {
 
 .date-chip-month {
   font-size: 11px;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .date-chip.selected .date-chip-month {
@@ -1249,12 +1286,12 @@ img {
 .time-slot {
   padding: 14px 0;
   border-radius: 12px;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  background: var(--tg-theme-bg-color, #ffffff);
   text-align: center;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 200ms ease, color 200ms ease, transform 150ms ease;
+  transition: background 200ms ease, color 200ms ease, transform 120ms ease;
   -webkit-user-select: none;
   user-select: none;
   color: var(--tg-theme-text-color, #000000);
@@ -1265,7 +1302,7 @@ img {
 }
 
 .time-slot.selected {
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   color: var(--tg-theme-button-text-color, #ffffff);
 }
 
@@ -1278,7 +1315,7 @@ img {
 .no-slots {
   text-align: center;
   padding: 24px;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   font-size: 15px;
 }
 
@@ -1293,6 +1330,7 @@ img {
   justify-content: center;
   min-height: calc(100vh - 100px);
   text-align: center;
+  padding: 0 16px;
 }
 
 .success-icon {
@@ -1320,15 +1358,16 @@ img {
 }
 
 .success-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--tg-theme-text-color, #000000);
   margin-bottom: 20px;
+  letter-spacing: -0.3px;
 }
 
 .success-card {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 14px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 16px;
   padding: 18px 20px;
   width: 100%;
   max-width: 320px;
@@ -1347,9 +1386,14 @@ img {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
+  padding: 7px 0;
   font-size: 15px;
   color: var(--tg-theme-text-color, #000000);
+  border-bottom: 0.5px solid var(--tg-theme-secondary-bg-color, #e5e5ea);
+}
+
+.success-card-row:last-child {
+  border-bottom: none;
 }
 
 .success-card-icon {
@@ -1360,7 +1404,7 @@ img {
 
 .success-hint {
   font-size: 14px;
-  color: var(--tg-theme-hint-color, #999999);
+  color: var(--tg-theme-hint-color, #8e8e93);
   line-height: 1.5;
   max-width: 280px;
 }
@@ -1374,9 +1418,8 @@ img {
    ============================== */
 
 .skeleton {
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  border-radius: 8px;
-  animation: shimmer 1.5s infinite;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
   position: relative;
   overflow: hidden;
 }
@@ -1391,21 +1434,21 @@ img {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.15),
+    rgba(0, 0, 0, 0.04),
     transparent
   );
   animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
 .skeleton-card {
-  height: 104px;
-  border-radius: 14px;
-  margin-bottom: 10px;
+  height: 100px;
+  border-radius: 16px;
+  margin-bottom: 8px;
 }
 
 /* ==============================
@@ -1419,13 +1462,12 @@ img {
 /* Безопасная зона для устройств с вырезом */
 @supports (padding-top: env(safe-area-inset-top)) {
   .screen {
-    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-top: calc(8px + env(safe-area-inset-top));
   }
 }
 
 /* ==============================
    13. FALLBACK-КНОПКИ (БРАУЗЕР)
-   Показываются только вне Telegram
    ============================== */
 
 .fallback-back-btn {
@@ -1433,16 +1475,17 @@ img {
   top: 10px;
   left: 10px;
   z-index: 1000;
-  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-  color: var(--tg-theme-link-color, #2AABEE);
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-link-color, #007AFF);
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 16px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 150ms ease;
+  transition: opacity 120ms ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
 .fallback-back-btn:active {
@@ -1455,17 +1498,17 @@ img {
   left: 0;
   right: 0;
   z-index: 1000;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   color: var(--tg-theme-button-text-color, #ffffff);
   border: none;
   padding: 16px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.5px;
-  transition: opacity 150ms ease;
+  transition: opacity 120ms ease;
 }
 
 .fallback-main-btn:active {
@@ -1492,33 +1535,37 @@ img {
 }
 
 .onboarding-title {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--tg-theme-text-color, #000);
   margin-bottom: 8px;
+  letter-spacing: -0.5px;
 }
 
 .onboarding-subtitle {
-  font-size: 16px;
-  color: var(--tg-theme-hint-color, #999);
-  margin-bottom: 24px;
+  font-size: 17px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-bottom: 28px;
 }
 
 .onboarding-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 32px 0;
+  margin: 0 0 36px 0;
   text-align: left;
   width: 100%;
   max-width: 320px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 14px;
+  padding: 4px 16px;
 }
 
 .onboarding-list li {
   position: relative;
-  padding: 10px 0 10px 28px;
+  padding: 14px 0 14px 28px;
   font-size: 15px;
   color: var(--tg-theme-text-color, #333);
-  border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+  border-bottom: 0.5px solid var(--tg-theme-secondary-bg-color, #e5e5ea);
 }
 
 .onboarding-list li:last-child {
@@ -1526,20 +1573,26 @@ img {
 }
 
 .onboarding-list li::before {
-  content: '✓';
+  content: '';
   position: absolute;
   left: 0;
-  top: 10px;
-  color: #4CAF50;
-  font-weight: 700;
-  font-size: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background: #34C759;
+  border-radius: 50%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+  background-size: 13px;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .onboarding-btn {
   width: 100%;
   max-width: 320px;
   padding: 16px;
-  background: var(--tg-theme-button-color, #2AABEE);
+  background: var(--tg-theme-button-color, #007AFF);
   color: var(--tg-theme-button-text-color, #fff);
   border: none;
   border-radius: 14px;
@@ -1547,7 +1600,7 @@ img {
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 150ms ease;
+  transition: opacity 120ms ease;
 }
 
 .onboarding-btn:active {
@@ -1559,7 +1612,5 @@ img {
    ============================== */
 
 .home-share-btn {
-  background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
-  color: var(--tg-theme-link-color, #2AABEE) !important;
-  border: 1px solid var(--tg-theme-link-color, #2AABEE) !important;
+  color: var(--tg-theme-link-color, #007AFF) !important;
 }
