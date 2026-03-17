@@ -65,7 +65,7 @@ img {
   pointer-events: none;
   transform: translateX(30px);
   transition: opacity 250ms ease-out, transform 250ms ease-out;
-  padding: 0 16px 80px;
+  padding: 0 16px 90px;
   overflow-y: auto;
 }
 
@@ -1613,4 +1613,70 @@ img {
 
 .home-share-btn {
   color: var(--tg-theme-link-color, #007AFF) !important;
+}
+
+/* ==============================
+   НИЖНИЙ ТАБ-БАР
+   ============================== */
+
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-top: 0.5px solid var(--tg-theme-secondary-bg-color, #e5e5ea);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  transition: transform 250ms ease;
+}
+
+.tab-bar.hidden {
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.tab-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 0 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 120ms;
+  font-family: inherit;
+}
+
+.tab-bar-item:active {
+  opacity: 0.6;
+}
+
+.tab-bar-icon {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  transition: color 200ms;
+}
+
+.tab-bar-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  transition: color 200ms;
+}
+
+.tab-bar-item.active .tab-bar-icon,
+.tab-bar-item.active .tab-bar-label {
+  color: var(--tg-theme-button-color, #007AFF);
+}
+
+.tab-bar-item.active .tab-bar-label {
+  font-weight: 600;
 }

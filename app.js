@@ -37,9 +37,20 @@ const state = {
   masterUnlocked: false,      // разблокирована ли панель мастера
 };
 
+// Экраны, на которых виден таб-бар
+const TAB_SCREENS = ['home', 'bonus', 'history'];
+
+// Маппинг таб → экран
+const TAB_MAP = {
+  catalog: 'home',
+  bonus: 'bonus',
+  history: 'history',
+};
+
 // Запуск при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
   initTelegram();
+  createTabBar();
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
   } else {
@@ -151,6 +162,9 @@ function renderScreen(screenName, isBack = false) {
     bindEvents(screenName, newScreen);
   });
 
+  // Обновляем таб-бар
+  updateTabBar(screenName);
+
   // Скроллим наверх
   window.scrollTo(0, 0);
 }
@@ -162,8 +176,8 @@ function updateTelegramButtons(screenName) {
 
   if (!tg) return;
 
-  // BackButton
-  if (screenName === 'home' || screenName === 'success') {
+  // BackButton — скрываем на табовых экранах и success
+  if (TAB_SCREENS.includes(screenName) || screenName === 'success') {
     tg.BackButton.hide();
   } else {
     tg.BackButton.show();
@@ -311,14 +325,6 @@ function renderHome() {
         </div>
       </div>
     </div>
-
-    <button class="home-history-btn" id="homeHistoryBtn">
-      <span class="home-booking-btn-icon">📋</span> История посещений
-    </button>
-
-    <button class="home-history-btn home-bonus-btn" id="homeBonusBtn">
-      <span class="home-booking-btn-icon">🎁</span> Бонусы: ${getBonusBalance()} ₽
-    </button>
 
     <button class="home-history-btn home-abonement-btn" id="homeAbonementBtn">
       <span class="home-booking-btn-icon">🏷️</span> Абонементы
@@ -1556,6 +1562,66 @@ function showOfferIfNeeded() {
 }
 
 // ============================================================
+// НИЖНИЙ ТАБ-БАР
+// ============================================================
+
+function createTabBar() {
+  const bar = document.createElement('nav');
+  bar.className = 'tab-bar';
+  bar.id = 'tabBar';
+  bar.innerHTML = `
+    <button class="tab-bar-item active" data-tab="catalog">
+      <span class="tab-bar-icon">📋</span>
+      <span class="tab-bar-label">Каталог</span>
+    </button>
+    <button class="tab-bar-item" data-tab="bonus">
+      <span class="tab-bar-icon">🎁</span>
+      <span class="tab-bar-label">Бонусы</span>
+    </button>
+    <button class="tab-bar-item" data-tab="history">
+      <span class="tab-bar-icon">📅</span>
+      <span class="tab-bar-label">Мои записи</span>
+    </button>
+  `;
+  document.body.appendChild(bar);
+
+  bar.querySelectorAll('.tab-bar-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const tab = item.dataset.tab;
+      const targetScreen = TAB_MAP[tab];
+      if (state.currentScreen === targetScreen) return;
+      // При переключении табов сбрасываем стек
+      state.screenHistory = [];
+      state.currentScreen = '_tab';
+      navigateTo(targetScreen, false);
+      haptic('selection');
+    });
+  });
+}
+
+function updateTabBar(screenName) {
+  const bar = document.getElementById('tabBar');
+  if (!bar) return;
+
+  // Показываем таб-бар только на табовых экранах
+  if (TAB_SCREENS.includes(screenName)) {
+    bar.classList.remove('hidden');
+  } else {
+    bar.classList.add('hidden');
+  }
+
+  // Определяем активный таб
+  let activeTab = null;
+  if (screenName === 'home') activeTab = 'catalog';
+  else if (screenName === 'bonus') activeTab = 'bonus';
+  else if (screenName === 'history') activeTab = 'history';
+
+  bar.querySelectorAll('.tab-bar-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.tab === activeTab);
+  });
+}
+
+// ============================================================
 // FALLBACK-КНОПКИ ДЛЯ БРАУЗЕРА (когда нет Telegram SDK)
 // ============================================================
 
@@ -1567,8 +1633,8 @@ function updateFallbackBackButton(screenName) {
   // Удаляем старые fallback-кнопки
   document.querySelectorAll('.fallback-back-btn, .fallback-main-btn').forEach(el => el.remove());
 
-  // Кнопка «Назад» — на всех экранах кроме главной и успеха
-  if (screenName !== 'home' && screenName !== 'success') {
+  // Кнопка «Назад» — скрываем на табовых экранах и успехе
+  if (!TAB_SCREENS.includes(screenName) && screenName !== 'success') {
     const backBtn = document.createElement('button');
     backBtn.className = 'fallback-back-btn';
     backBtn.textContent = '← Назад';
