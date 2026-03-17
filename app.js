@@ -1276,8 +1276,8 @@ function bindEvents(screenName, container) {
       // Тап по карточке услуги
       container.querySelectorAll('.service-card').forEach(card => {
         card.addEventListener('click', () => {
-          const serviceId = parseInt(card.dataset.serviceId);
-          state.selectedService = SERVICES.find(s => s.id === serviceId);
+          const serviceId = card.dataset.serviceId;
+          state.selectedService = SERVICES.find(s => String(s.id) === serviceId);
           navigateTo('service');
         });
       });
