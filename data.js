@@ -12,7 +12,8 @@
  */
 
 // === ИНФОРМАЦИЯ О МАСТЕРЕ ===
-const MASTER = {
+// let — чтобы можно было перезаписать данными из Supabase
+let MASTER = {
   name: 'Лазер Тайм',
   description: 'Центр лазерной эпиляции и аппаратной косметологии',
   // Аватар — эмодзи-заглушка, заменить на URL фото мастера
@@ -23,7 +24,7 @@ const MASTER = {
 };
 
 // === КАТЕГОРИИ УСЛУГ ===
-const CATEGORIES = [
+let CATEGORIES = [
   { id: 'manicure', name: 'Лазерная эпиляция', icon: '✨', sort: 1 },
   { id: 'pedicure', name: 'Коррекция фигуры', icon: '💎', sort: 2 },
   { id: 'brows',    name: 'Комплексы', icon: '🎁', sort: 3 },
@@ -31,7 +32,7 @@ const CATEGORIES = [
 ];
 
 // === УСЛУГИ ===
-const SERVICES = [
+let SERVICES = [
   // --- Лазерная эпиляция ---
   {
     id: 1,
@@ -495,8 +496,8 @@ function formatDateKey(date) {
   return `${y}-${m}-${d}`;
 }
 
-const SCHEDULE = generateSchedule();
+let SCHEDULE = generateSchedule();
 
 // Массив забронированных слотов (имитация)
 // Формат: "2026-03-10_10:00"
-const BOOKED_SLOTS = [];
+let BOOKED_SLOTS = [];

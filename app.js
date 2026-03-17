@@ -22,8 +22,11 @@
 
 const tg = window.Telegram?.WebApp;
 
-// Код доступа мастера
-const MASTER_CODE = '5638';
+// Код доступа мастера (перезапишется из Supabase)
+let MASTER_CODE = '5638';
+
+// ID мастера из Supabase (для записей и API-запросов)
+let CURRENT_MASTER_ID = null;
 
 // Состояние приложения
 const state = {
@@ -48,9 +51,39 @@ const TAB_MAP = {
 };
 
 // Запуск при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initTelegram();
   createTabBar();
+
+  // Показываем skeleton пока грузим данные
+  document.getElementById('app').innerHTML = `
+    <div style="padding: 20px; text-align: center; margin-top: 40vh;">
+      <div style="font-size: 24px; margin-bottom: 12px;">✨</div>
+      <div style="color: var(--tg-theme-hint-color, #999);">Загружаем каталог...</div>
+    </div>
+  `;
+
+  // Пытаемся загрузить данные из Supabase
+  try {
+    const data = await loadAllData();
+    if (data) {
+      // Перезаписываем глобальные переменные данными из базы
+      MASTER = data.master;
+      CATEGORIES = data.categories;
+      SERVICES = data.services;
+      SCHEDULE = data.schedule;
+      BOOKED_SLOTS = data.bookedSlots;
+      CURRENT_MASTER_ID = data.master.id;
+      MASTER_CODE = data.master.master_code || '0000';
+      console.log('✅ Данные загружены из Supabase');
+    } else {
+      console.warn('⚠️ Supabase недоступен, используем локальные данные');
+    }
+  } catch (err) {
+    console.warn('⚠️ Ошибка загрузки из Supabase, используем локальные данные:', err);
+  }
+
+  // Запускаем приложение
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
   } else {
@@ -1018,29 +1051,43 @@ function renderSuccess() {
 // ОТПРАВКА ЗАПИСИ
 // ============================================================
 
-function submitBooking() {
+async function submitBooking() {
   const service = state.selectedService;
   const tgUser = tg?.initDataUnsafe?.user || {};
 
-  // Данные записи
-  const bookingData = {
-    service_id: service.id,
-    service_name: service.name,
-    date: state.selectedDate,
-    time: state.selectedTime,
-    price: service.salePrice || service.price,
-    duration: service.duration,
-    tg_user_id: tgUser.id || null,
-    tg_username: tgUser.username || null,
-    tg_first_name: tgUser.first_name || null,
-  };
-
-  console.log('Запись отправлена:', bookingData);
-
-  // Помечаем слот как занятый (локально)
+  // Помечаем слот как занятый (сразу, чтобы UI обновился)
   BOOKED_SLOTS.push(`${state.selectedDate}_${state.selectedTime}`);
 
-  // Сохраняем в историю посещений
+  // Сохраняем в Supabase (если подключены)
+  if (CURRENT_MASTER_ID) {
+    try {
+      const result = await createBooking({
+        master_id: CURRENT_MASTER_ID,
+        service_id: service.id,
+        client_tg_id: tgUser.id || 0,
+        client_name: tgUser.first_name || '',
+        client_username: tgUser.username || '',
+        date: state.selectedDate,
+        time: state.selectedTime,
+        price: service.salePrice || service.price,
+        duration: service.duration,
+      });
+
+      if (result) {
+        console.log('✅ Запись сохранена в Supabase:', result);
+        // Создаём/обновляем клиента
+        if (tgUser.id) {
+          upsertClient(CURRENT_MASTER_ID, tgUser);
+        }
+      } else {
+        console.warn('⚠️ Не удалось сохранить в Supabase');
+      }
+    } catch (err) {
+      console.warn('⚠️ Ошибка сохранения в Supabase:', err);
+    }
+  }
+
+  // Сохраняем в localStorage (fallback + для офлайн-истории)
   const history = JSON.parse(localStorage.getItem('bookingHistory') || '[]');
   history.unshift({
     serviceName: service.name,
@@ -1050,9 +1097,6 @@ function submitBooking() {
     confirmed: false,
   });
   localStorage.setItem('bookingHistory', JSON.stringify(history));
-
-  // TODO: отправить bookingData на бэкенд (Google Apps Script)
-  // fetch(API_URL, { method: 'POST', body: JSON.stringify(bookingData) })
 
   // Переходим на экран успеха
   navigateTo('success');
