@@ -38,6 +38,11 @@ const state = {
   selectedTime: null,         // выбранное время ("14:30")
   galleryIndex: 0,            // текущий слайд галереи
   masterUnlocked: false,      // разблокирована ли панель мастера
+  masterTab: 'bookings',      // текущая вкладка панели мастера
+  editingService: null,       // услуга, которую редактируем (null = новая)
+  masterBookings: [],         // записи мастера (загружаются из Supabase)
+  masterServices: [],         // все услуги мастера
+  masterClients: [],          // клиенты мастера
 };
 
 // Экраны, на которых виден таб-бар
@@ -636,9 +641,44 @@ function renderMasterLogin() {
 // ============================================================
 
 function renderMasterPanel() {
-  const bookings = JSON.parse(localStorage.getItem('bookingHistory') || '[]');
-  const today = new Date().toISOString().split('T')[0];
+  const tab = state.masterTab || 'bookings';
 
+  const tabsHTML = `
+    <div class="role-tabs">
+      <button class="role-tab" id="roleClientFromMaster">Клиент</button>
+      <button class="role-tab active" id="roleMasterFromMaster">Мастер</button>
+    </div>
+    <div class="admin-tabs">
+      <button class="admin-tab ${tab === 'bookings' ? 'active' : ''}" data-tab="bookings">Записи</button>
+      <button class="admin-tab ${tab === 'services' ? 'active' : ''}" data-tab="services">Услуги</button>
+      <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
+    </div>
+  `;
+
+  let contentHTML = '';
+  switch (tab) {
+    case 'bookings': contentHTML = renderMasterBookings(); break;
+    case 'services': contentHTML = renderMasterServicesList(); break;
+    case 'clients':  contentHTML = renderMasterClientsList(); break;
+    case 'serviceForm': contentHTML = renderServiceForm(); break;
+  }
+
+  return `
+    <div class="history-screen admin-panel">
+      ${tab === 'serviceForm' ? `
+        <div class="admin-back-row">
+          <button class="admin-back-btn" id="backToServices">← Назад к услугам</button>
+        </div>
+      ` : tabsHTML}
+      <div id="adminContent">${contentHTML}</div>
+    </div>
+  `;
+}
+
+// --- Вкладка «Записи» ---
+function renderMasterBookings() {
+  const bookings = state.masterBookings;
+  const today = formatDateKey ? formatDateKey(new Date()) : new Date().toISOString().split('T')[0];
   const todayBookings = bookings.filter(b => b.date === today);
   const totalRevenue = bookings.reduce((sum, b) => sum + (b.price || 0), 0);
 
@@ -646,76 +686,167 @@ function renderMasterPanel() {
     <div class="master-stats">
       <div class="master-stat-card">
         <div class="master-stat-value">${todayBookings.length}</div>
-        <div class="master-stat-label">Записей сегодня</div>
+        <div class="master-stat-label">Сегодня</div>
       </div>
       <div class="master-stat-card">
         <div class="master-stat-value">${bookings.length}</div>
-        <div class="master-stat-label">Всего записей</div>
+        <div class="master-stat-label">Всего</div>
       </div>
       <div class="master-stat-card">
-        <div class="master-stat-value">${totalRevenue.toLocaleString('ru-RU')} ₽</div>
-        <div class="master-stat-label">Общая выручка</div>
+        <div class="master-stat-value">${totalRevenue.toLocaleString('ru-RU')}</div>
+        <div class="master-stat-label">Выручка, ₽</div>
       </div>
     </div>
   `;
 
-  const todayListHTML = todayBookings.length
-    ? todayBookings.map((b) => {
-        const idx = bookings.indexOf(b);
-        const statusHTML = b.confirmed
-          ? '<span class="master-confirmed-badge">Визит подтверждён</span>'
-          : `<button class="master-confirm-visit-btn" data-index="${idx}">Подтвердить визит</button>`;
-        return `
-        <div class="history-card">
-          <div class="history-card-header">
-            <span class="history-card-name">${b.serviceName}</span>
-            <span class="history-card-price">${b.price} ₽</span>
-          </div>
-          <div class="history-card-details">
-            <span>🕐 ${b.time}</span>
-          </div>
-          ${statusHTML}
-        </div>
-      `;
-      }).join('')
-    : '<div class="history-empty">На сегодня записей нет</div>';
+  const listHTML = bookings.length
+    ? bookings.map(b => {
+        const serviceName = b.services?.name || 'Услуга';
+        const timeShort = b.time ? b.time.substring(0, 5) : '';
+        const statusClass = b.status === 'confirmed' ? 'confirmed' : (b.status === 'cancelled' ? 'cancelled' : 'pending');
+        const statusLabel = b.status === 'confirmed' ? 'Подтверждено' : (b.status === 'cancelled' ? 'Отменено' : 'Ожидает');
 
-  const allListHTML = bookings.length
-    ? bookings.map((b, idx) => {
-        const statusHTML = b.confirmed
-          ? '<span class="master-confirmed-badge">Визит подтверждён</span>'
-          : `<button class="master-confirm-visit-btn" data-index="${idx}">Подтвердить визит</button>`;
         return `
-        <div class="history-card">
-          <div class="history-card-header">
-            <span class="history-card-name">${b.serviceName}</span>
-            <span class="history-card-price">${b.price} ₽</span>
+        <div class="admin-booking-card">
+          <div class="admin-booking-header">
+            <span class="admin-booking-name">${b.client_name || 'Клиент'}${b.client_username ? ' @' + b.client_username : ''}</span>
+            <span class="admin-booking-status ${statusClass}">${statusLabel}</span>
           </div>
-          <div class="history-card-details">
-            <span>📅 ${b.date}, ${b.time}</span>
+          <div class="admin-booking-details">
+            <span>${serviceName}</span>
+            <span>${b.date}, ${timeShort}</span>
+            <span>${b.price ? b.price + ' ₽' : ''}</span>
           </div>
-          ${statusHTML}
+          ${b.status === 'pending' ? `
+            <div class="admin-booking-actions">
+              <button class="admin-btn confirm" data-booking-id="${b.id}">Подтвердить</button>
+              <button class="admin-btn cancel" data-booking-id="${b.id}">Отменить</button>
+            </div>
+          ` : ''}
         </div>
       `;
       }).join('')
-    : '<div class="history-empty">Пока нет записей</div>';
+    : '<div class="history-empty">Нет предстоящих записей</div>';
+
+  return `${statsHTML}<div class="master-section-title">Предстоящие записи</div>${listHTML}`;
+}
+
+// --- Вкладка «Услуги» ---
+function renderMasterServicesList() {
+  const services = state.masterServices;
+
+  const listHTML = services.length
+    ? services.map(s => {
+        const cat = CATEGORIES.find(c => c.id === s.category_id);
+        const photoThumb = s.photos && s.photos.length > 0
+          ? `<img src="${s.photos[0]}" class="admin-service-thumb">`
+          : `<div class="admin-service-thumb-placeholder">${cat ? cat.icon : '✨'}</div>`;
+
+        return `
+        <div class="admin-service-card" data-service-id="${s.id}">
+          ${photoThumb}
+          <div class="admin-service-info">
+            <div class="admin-service-name">${s.name}</div>
+            <div class="admin-service-meta">${s.duration} мин · ${s.price} ₽${s.sale_price ? ' / ' + s.sale_price + ' ₽' : ''}</div>
+          </div>
+          <div class="admin-service-actions">
+            <button class="admin-icon-btn edit" data-service-id="${s.id}" title="Редактировать">✏️</button>
+            <button class="admin-icon-btn delete" data-service-id="${s.id}" title="Удалить">🗑️</button>
+          </div>
+        </div>
+      `;
+      }).join('')
+    : '<div class="history-empty">Нет услуг</div>';
 
   return `
-    <div class="history-screen">
-      <div class="role-tabs">
-        <button class="role-tab" id="roleClientFromMaster">Клиент</button>
-        <button class="role-tab active" id="roleMasterFromMaster">Мастер</button>
+    <button class="admin-add-btn" id="addServiceBtn">+ Добавить услугу</button>
+    ${listHTML}
+  `;
+}
+
+// --- Вкладка «Клиенты» ---
+function renderMasterClientsList() {
+  const clients = state.masterClients;
+
+  const listHTML = clients.length
+    ? clients.map(c => {
+        const date = c.created_at ? new Date(c.created_at).toLocaleDateString('ru-RU') : '';
+        return `
+        <div class="admin-client-card">
+          <div class="admin-client-name">${c.first_name || 'Клиент'}${c.username ? ' @' + c.username : ''}</div>
+          <div class="admin-client-meta">
+            <span>Визитов: ${c.visits_count || 0}</span>
+            <span>Бонусы: ${c.bonus_balance || 0} ₽</span>
+            <span>С ${date}</span>
+          </div>
+        </div>
+      `;
+      }).join('')
+    : '<div class="history-empty">Пока нет клиентов</div>';
+
+  return `<div class="master-section-title">Клиенты (${clients.length})</div>${listHTML}`;
+}
+
+// --- Форма добавления/редактирования услуги ---
+function renderServiceForm() {
+  const s = state.editingService;
+  const isEdit = !!s;
+  const title = isEdit ? 'Редактировать услугу' : 'Новая услуга';
+
+  const categoriesOptions = CATEGORIES.map(c =>
+    `<option value="${c.id}" ${s && s.category_id === c.id ? 'selected' : ''}>${c.icon} ${c.name}</option>`
+  ).join('');
+
+  const photosHTML = (s && s.photos && s.photos.length > 0)
+    ? s.photos.map((url, i) => `
+        <div class="admin-photo-item" data-index="${i}">
+          <img src="${url}">
+          <button class="admin-photo-delete" data-index="${i}">×</button>
+        </div>
+      `).join('')
+    : '';
+
+  return `
+    <div class="admin-form">
+      <div class="master-section-title">${title}</div>
+
+      <label class="admin-label">Название</label>
+      <input class="admin-input" id="svcName" value="${isEdit ? s.name : ''}" placeholder="Лазерная эпиляция ног">
+
+      <label class="admin-label">Категория</label>
+      <select class="admin-input" id="svcCategory">${categoriesOptions}</select>
+
+      <div class="admin-row">
+        <div class="admin-col">
+          <label class="admin-label">Цена, ₽</label>
+          <input class="admin-input" id="svcPrice" type="number" value="${isEdit ? s.price : ''}" placeholder="2000">
+        </div>
+        <div class="admin-col">
+          <label class="admin-label">Акция, ₽</label>
+          <input class="admin-input" id="svcSalePrice" type="number" value="${isEdit && s.sale_price ? s.sale_price : ''}" placeholder="">
+        </div>
       </div>
 
-      <div class="history-title">Панель мастера</div>
+      <div class="admin-row">
+        <div class="admin-col">
+          <label class="admin-label">Длительность, мин</label>
+          <input class="admin-input" id="svcDuration" type="number" value="${isEdit ? s.duration : '60'}" placeholder="60">
+        </div>
+        <div class="admin-col">
+          <label class="admin-label">Порядок</label>
+          <input class="admin-input" id="svcSort" type="number" value="${isEdit ? s.sort_order : '0'}" placeholder="0">
+        </div>
+      </div>
 
-      ${statsHTML}
+      <label class="admin-label">Описание</label>
+      <textarea class="admin-input admin-textarea" id="svcDescription" placeholder="Описание услуги...">${isEdit ? (s.description || '') : ''}</textarea>
 
-      <div class="master-section-title">Записи на сегодня</div>
-      ${todayListHTML}
+      <label class="admin-label">Фото</label>
+      <div class="admin-photos" id="svcPhotos">${photosHTML}</div>
+      <label class="admin-upload-btn" for="svcPhotoInput">+ Загрузить фото</label>
+      <input type="file" id="svcPhotoInput" accept="image/*" multiple style="display:none">
 
-      <div class="master-section-title">Все записи</div>
-      ${allListHTML}
+      <button class="admin-save-btn" id="saveServiceBtn">${isEdit ? 'Сохранить' : 'Создать услугу'}</button>
     </div>
   `;
 }
@@ -1107,6 +1238,82 @@ async function submitBooking() {
 }
 
 // ============================================================
+// АДМИН-ХЕЛПЕРЫ
+// ============================================================
+
+// Загрузка данных для вкладки панели мастера
+async function loadMasterTabData(tab) {
+  if (!CURRENT_MASTER_ID) return;
+  try {
+    if (tab === 'bookings') {
+      state.masterBookings = await loadMasterBookings(CURRENT_MASTER_ID) || [];
+    } else if (tab === 'services') {
+      state.masterServices = await loadAllServices(CURRENT_MASTER_ID) || [];
+    } else if (tab === 'clients') {
+      state.masterClients = await loadMasterClients(CURRENT_MASTER_ID) || [];
+    }
+  } catch (err) {
+    console.error('Ошибка загрузки данных панели:', err);
+  }
+}
+
+// Перезагрузить глобальный SERVICES (для клиентского каталога)
+async function reloadGlobalServices() {
+  if (!CURRENT_MASTER_ID) return;
+  const services = await loadServices(CURRENT_MASTER_ID);
+  if (services) {
+    SERVICES = services.map(s => ({
+      id: s.id,
+      category: s.category_id,
+      name: s.name,
+      description: s.description,
+      duration: s.duration,
+      price: s.price,
+      salePrice: s.sale_price,
+      photos: s.photos || [],
+      active: s.is_active,
+      sort: s.sort_order,
+    }));
+  }
+}
+
+// Обновить содержимое админ-панели без полной перерисовки
+function refreshAdminContent(container) {
+  const content = container.querySelector('#adminContent');
+  if (!content) return;
+  switch (state.masterTab) {
+    case 'bookings': content.innerHTML = renderMasterBookings(); break;
+    case 'services': content.innerHTML = renderMasterServicesList(); break;
+    case 'clients':  content.innerHTML = renderMasterClientsList(); break;
+  }
+  // Перепривязываем обработчики
+  bindEvents('masterPanel', container);
+}
+
+// Привязка кнопок удаления фото
+function bindPhotoDeleteButtons(container) {
+  container.querySelectorAll('.admin-photo-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const idx = parseInt(btn.dataset.index);
+      if (state.editingService?.photos) {
+        state.editingService.photos.splice(idx, 1);
+        const photosContainer = container.querySelector('#svcPhotos');
+        if (photosContainer) {
+          photosContainer.innerHTML = state.editingService.photos.map((url, i) => `
+            <div class="admin-photo-item" data-index="${i}">
+              <img src="${url}">
+              <button class="admin-photo-delete" data-index="${i}">×</button>
+            </div>
+          `).join('');
+          bindPhotoDeleteButtons(container);
+        }
+      }
+    });
+  });
+}
+
+// ============================================================
 // ПРИВЯЗКА СОБЫТИЙ
 // ============================================================
 
@@ -1200,8 +1407,9 @@ function bindEvents(screenName, container) {
       // Вкладка «Мастер»
       const roleMasterBtn = container.querySelector('#roleMaster');
       if (roleMasterBtn) {
-        roleMasterBtn.addEventListener('click', () => {
+        roleMasterBtn.addEventListener('click', async () => {
           if (state.masterUnlocked) {
+            await loadMasterTabData(state.masterTab || 'bookings');
             navigateTo('masterPanel');
           } else {
             navigateTo('masterLogin');
@@ -1217,10 +1425,12 @@ function bindEvents(screenName, container) {
       const loginError = container.querySelector('#masterLoginError');
 
       if (loginBtn && codeInput) {
-        const tryLogin = () => {
+        const tryLogin = async () => {
           if (codeInput.value === MASTER_CODE) {
             state.masterUnlocked = true;
+            state.masterTab = 'bookings';
             haptic('notification', 'success');
+            await loadMasterTabData('bookings');
             navigateTo('masterPanel');
           } else {
             loginError.classList.remove('hidden');
@@ -1247,29 +1457,168 @@ function bindEvents(screenName, container) {
       break;
 
     case 'masterPanel':
-      // Вкладка «Клиент» из панели мастера
+      // Вкладка «Клиент»
       const roleClientBtn = container.querySelector('#roleClientFromMaster');
       if (roleClientBtn) {
-        roleClientBtn.addEventListener('click', () => {
-          navigateTo('home');
-        });
+        roleClientBtn.addEventListener('click', () => navigateTo('home'));
       }
-      // Кнопки подтверждения визита
-      container.querySelectorAll('.master-confirm-visit-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = parseInt(btn.dataset.index);
-          const history = JSON.parse(localStorage.getItem('bookingHistory') || '[]');
-          if (history[idx] && !history[idx].confirmed) {
-            history[idx].confirmed = true;
-            localStorage.setItem('bookingHistory', JSON.stringify(history));
-            addBonus(history[idx].price);
-            haptic('notification', 'success');
-            // Перерендер панели
-            state.currentScreen = '_refresh';
-            navigateTo('masterPanel', false);
-          }
+
+      // Вкладки админки
+      container.querySelectorAll('.admin-tab').forEach(tab => {
+        tab.addEventListener('click', async () => {
+          state.masterTab = tab.dataset.tab;
+          haptic('selection');
+          await loadMasterTabData(state.masterTab);
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
         });
       });
+
+      // Кнопка «Назад к услугам»
+      const backToServices = container.querySelector('#backToServices');
+      if (backToServices) {
+        backToServices.addEventListener('click', () => {
+          state.masterTab = 'services';
+          state.editingService = null;
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Записи: подтвердить / отменить ---
+      container.querySelectorAll('.admin-btn.confirm').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await updateBookingStatus(btn.dataset.bookingId, 'confirmed');
+          haptic('notification', 'success');
+          await loadMasterTabData('bookings');
+          refreshAdminContent(container);
+        });
+      });
+      container.querySelectorAll('.admin-btn.cancel').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await updateBookingStatus(btn.dataset.bookingId, 'cancelled');
+          haptic('notification', 'warning');
+          await loadMasterTabData('bookings');
+          refreshAdminContent(container);
+        });
+      });
+
+      // --- Услуги: добавить ---
+      const addServiceBtn = container.querySelector('#addServiceBtn');
+      if (addServiceBtn) {
+        addServiceBtn.addEventListener('click', () => {
+          state.editingService = null;
+          state.masterTab = 'serviceForm';
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Услуги: редактировать ---
+      container.querySelectorAll('.admin-icon-btn.edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const svc = state.masterServices.find(s => s.id === btn.dataset.serviceId);
+          state.editingService = { ...svc };
+          state.masterTab = 'serviceForm';
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      });
+
+      // --- Услуги: удалить ---
+      container.querySelectorAll('.admin-icon-btn.delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Удалить услугу?')) return;
+          await deleteService(btn.dataset.serviceId);
+          haptic('notification', 'success');
+          await loadMasterTabData('services');
+          refreshAdminContent(container);
+        });
+      });
+
+      // --- Форма услуги: загрузка фото ---
+      const photoInput = container.querySelector('#svcPhotoInput');
+      if (photoInput) {
+        photoInput.addEventListener('change', async (e) => {
+          const files = Array.from(e.target.files);
+          if (!files.length) return;
+
+          for (const file of files) {
+            const url = await uploadServicePhoto(file, CURRENT_MASTER_ID);
+            if (url) {
+              if (!state.editingService) state.editingService = { photos: [] };
+              if (!state.editingService.photos) state.editingService.photos = [];
+              state.editingService.photos.push(url);
+            }
+          }
+          // Обновить отображение фото
+          const photosContainer = container.querySelector('#svcPhotos');
+          if (photosContainer) {
+            photosContainer.innerHTML = (state.editingService?.photos || []).map((url, i) => `
+              <div class="admin-photo-item" data-index="${i}">
+                <img src="${url}">
+                <button class="admin-photo-delete" data-index="${i}">×</button>
+              </div>
+            `).join('');
+            bindPhotoDeleteButtons(container);
+          }
+          photoInput.value = '';
+        });
+      }
+      bindPhotoDeleteButtons(container);
+
+      // --- Форма услуги: сохранить ---
+      const saveBtn = container.querySelector('#saveServiceBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+          const name = container.querySelector('#svcName')?.value.trim();
+          const categoryId = container.querySelector('#svcCategory')?.value;
+          const price = parseInt(container.querySelector('#svcPrice')?.value) || 0;
+          const salePrice = parseInt(container.querySelector('#svcSalePrice')?.value) || null;
+          const duration = parseInt(container.querySelector('#svcDuration')?.value) || 60;
+          const sortOrder = parseInt(container.querySelector('#svcSort')?.value) || 0;
+          const description = container.querySelector('#svcDescription')?.value.trim();
+          const photos = state.editingService?.photos || [];
+
+          if (!name || !price) {
+            alert('Заполните название и цену');
+            return;
+          }
+
+          const data = {
+            master_id: CURRENT_MASTER_ID,
+            category_id: categoryId,
+            name,
+            description,
+            price,
+            sale_price: salePrice,
+            duration,
+            sort_order: sortOrder,
+            photos,
+            is_active: true,
+          };
+
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Сохраняем...';
+
+          if (state.editingService?.id) {
+            await updateService(state.editingService.id, data);
+          } else {
+            await addService(data);
+          }
+
+          haptic('notification', 'success');
+          state.editingService = null;
+          state.masterTab = 'services';
+          await loadMasterTabData('services');
+          // Обновляем глобальный SERVICES для клиентского каталога
+          await reloadGlobalServices();
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
       break;
 
     case 'catalog':

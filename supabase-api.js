@@ -78,6 +78,59 @@ const API = {
 
     return response.json();
   },
+
+  // DELETE-запрос
+  async delete(table, query) {
+    const response = await fetch(`${this.url}/rest/v1/${table}?${query}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': this.key,
+        'Authorization': `Bearer ${this.key}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('API DELETE error:', response.status);
+      return false;
+    }
+
+    return true;
+  },
+
+  // Загрузка файла в Storage
+  async uploadFile(bucket, path, file) {
+    const response = await fetch(`${this.url}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: {
+        'apikey': this.key,
+        'Authorization': `Bearer ${this.key}`,
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+
+    if (!response.ok) {
+      console.error('Upload error:', response.status);
+      return null;
+    }
+
+    return `${this.url}/storage/v1/object/public/${bucket}/${path}`;
+  },
+
+  // Удаление файла из Storage
+  async deleteFile(bucket, paths) {
+    const response = await fetch(`${this.url}/storage/v1/object/${bucket}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': this.key,
+        'Authorization': `Bearer ${this.key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prefixes: paths }),
+    });
+
+    return response.ok;
+  },
 };
 
 
@@ -258,6 +311,57 @@ function formatDateKey(date) {
   return `${y}-${m}-${d}`;
 }
 
+
+// === Админ-функции для панели мастера ===
+
+// Все записи мастера (будущие + сегодня)
+async function loadMasterBookings(masterId) {
+  const today = formatDateKey(new Date());
+  return API.fetch('bookings',
+    `master_id=eq.${masterId}&date=gte.${today}&order=date.asc,time.asc&select=*,services(name)`
+  ) || [];
+}
+
+// Обновить статус записи
+async function updateBookingStatus(bookingId, status) {
+  return API.patch('bookings', `id=eq.${bookingId}`, { status });
+}
+
+// ВСЕ услуги мастера (включая неактивные)
+async function loadAllServices(masterId) {
+  return API.fetch('services',
+    `master_id=eq.${masterId}&order=sort_order.asc&select=*`
+  ) || [];
+}
+
+// Создать услугу
+async function addService(data) {
+  return API.post('services', data);
+}
+
+// Обновить услугу
+async function updateService(serviceId, data) {
+  return API.patch('services', `id=eq.${serviceId}`, data);
+}
+
+// Удалить услугу
+async function deleteService(serviceId) {
+  return API.delete('services', `id=eq.${serviceId}`);
+}
+
+// Загрузить фото услуги
+async function uploadServicePhoto(file, masterId) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const fileName = `${masterId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  return API.uploadFile('photos', fileName, file);
+}
+
+// Все клиенты мастера
+async function loadMasterClients(masterId) {
+  return API.fetch('clients',
+    `master_id=eq.${masterId}&order=created_at.desc&select=*`
+  ) || [];
+}
 
 // === Главная функция загрузки всех данных ===
 
