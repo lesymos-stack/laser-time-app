@@ -147,6 +147,10 @@ function renderScreen(screenName, isBack = false) {
   const app = document.getElementById('app');
   const oldScreen = app.querySelector('.screen.active');
 
+  // Убираем skeleton-загрузку (если осталась)
+  const skeleton = app.querySelector(':scope > :not(.screen)');
+  if (skeleton) skeleton.remove();
+
   // Создаём новый экран
   let html = '';
   switch (screenName) {
