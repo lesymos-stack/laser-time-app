@@ -268,7 +268,7 @@ function renderHome() {
   const promoHTML = hasSale ? `
     <div class="promo-banner" data-action="show-sales">
       <div class="promo-badge">АКЦИЯ</div>
-      <div class="promo-title">Скидка до 30% на первый визит</div>
+      <div class="promo-title">Скидка до 20% на первый визит</div>
       <div class="promo-text">Успейте записаться по выгодной цене</div>
     </div>
   ` : '';
