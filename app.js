@@ -193,23 +193,12 @@ function updateTelegramButtons(screenName) {
     case 'abonement':
     case 'masterLogin':
     case 'masterPanel':
+    case 'booking':
       tg.MainButton.hide();
       break;
     case 'service':
       tg.MainButton.setText('ЗАПИСАТЬСЯ');
       tg.MainButton.show();
-      tg.MainButton.onClick(mainButtonHandler);
-      break;
-    case 'booking':
-      tg.MainButton.setText('ПОДТВЕРДИТЬ');
-      tg.MainButton.show();
-      if (!state.selectedDate || !state.selectedTime) {
-        tg.MainButton.disable();
-        tg.MainButton.color = '#999999';
-      } else {
-        tg.MainButton.enable();
-        tg.MainButton.color = tg.themeParams?.button_color || '#2AABEE';
-      }
       tg.MainButton.onClick(mainButtonHandler);
       break;
     case 'success':
