@@ -1637,7 +1637,7 @@ function updateFallbackBackButton(screenName) {
   if (!TAB_SCREENS.includes(screenName) && screenName !== 'success') {
     const backBtn = document.createElement('button');
     backBtn.className = 'fallback-back-btn';
-    backBtn.textContent = '← Назад';
+    backBtn.textContent = '←';
     backBtn.addEventListener('click', () => goBack());
     document.body.appendChild(backBtn);
   }
