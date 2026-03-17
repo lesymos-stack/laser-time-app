@@ -1475,17 +1475,17 @@ img {
   top: 10px;
   left: 10px;
   z-index: 1000;
-  background: var(--tg-theme-bg-color, #ffffff);
+  background: transparent;
   color: var(--tg-theme-link-color, #007AFF);
   border: none;
-  border-radius: 12px;
-  padding: 8px 16px;
-  font-size: 15px;
+  border-radius: 0;
+  padding: 8px 12px;
+  font-size: 18px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   transition: opacity 120ms ease;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: none;
 }
 
 .fallback-back-btn:active {
