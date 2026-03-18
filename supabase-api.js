@@ -409,6 +409,134 @@ async function loadMasterClients(masterId) {
   ) || [];
 }
 
+// === Бонусная система ===
+
+// Начислить бонусы за визит (5% от суммы)
+async function creditBonus(masterId, clientTgId, bookingId, amount) {
+  // Находим клиента
+  const clients = await API.fetch('clients',
+    `master_id=eq.${masterId}&tg_user_id=eq.${clientTgId}&select=id,bonus_balance`
+  );
+  if (!clients || !clients[0]) return null;
+
+  const client = clients[0];
+  const bonusAmount = Math.round(amount * 0.05 * 100) / 100; // 5%
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + 3); // через 3 месяца
+
+  // Создаём транзакцию
+  await API.post('bonus_transactions', {
+    master_id: masterId,
+    client_id: client.id,
+    booking_id: bookingId,
+    amount: bonusAmount,
+    type: 'credit',
+    description: `Начисление 5% за визит`,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  // Обновляем баланс клиента
+  const newBalance = parseFloat(client.bonus_balance || 0) + bonusAmount;
+  await API.patch('clients', `id=eq.${client.id}`, { bonus_balance: newBalance });
+
+  // Помечаем запись как bonus_credited
+  await API.patch('bookings', `id=eq.${bookingId}`, { bonus_credited: true });
+
+  return bonusAmount;
+}
+
+// Списать бонусы при записи
+async function debitBonus(masterId, clientTgId, amount) {
+  const clients = await API.fetch('clients',
+    `master_id=eq.${masterId}&tg_user_id=eq.${clientTgId}&select=id,bonus_balance`
+  );
+  if (!clients || !clients[0]) return false;
+
+  const client = clients[0];
+  const balance = parseFloat(client.bonus_balance || 0);
+  if (amount > balance) return false;
+
+  // Создаём транзакцию списания
+  await API.post('bonus_transactions', {
+    master_id: masterId,
+    client_id: client.id,
+    amount: -amount,
+    type: 'debit',
+    description: `Списание бонусов за услугу`,
+  });
+
+  // Обновляем баланс
+  const newBalance = balance - amount;
+  await API.patch('clients', `id=eq.${client.id}`, { bonus_balance: newBalance });
+
+  return true;
+}
+
+// Сгорание бонусов (вызывается при загрузке данных)
+async function expireOldBonuses(masterId, clientId) {
+  const now = new Date().toISOString();
+  // Находим просроченные начисления, которые ещё не сгорели
+  const expired = await API.fetch('bonus_transactions',
+    `client_id=eq.${clientId}&type=eq.credit&expires_at=lt.${now}&select=id,amount`
+  );
+  if (!expired || expired.length === 0) return 0;
+
+  // Проверяем, не было ли уже записи о сгорании для этих транзакций
+  let totalExpired = 0;
+  for (const tx of expired) {
+    // Помечаем как сгоревшее через создание транзакции expire
+    const existing = await API.fetch('bonus_transactions',
+      `client_id=eq.${clientId}&type=eq.expire&description=eq.ref:${tx.id}&select=id`
+    );
+    if (existing && existing.length > 0) continue;
+
+    await API.post('bonus_transactions', {
+      master_id: masterId,
+      client_id: clientId,
+      amount: -tx.amount,
+      type: 'expire',
+      description: `ref:${tx.id}`,
+    });
+    totalExpired += parseFloat(tx.amount);
+  }
+
+  if (totalExpired > 0) {
+    // Обновляем баланс
+    const clients = await API.fetch('clients', `id=eq.${clientId}&select=bonus_balance`);
+    if (clients && clients[0]) {
+      const newBalance = Math.max(0, parseFloat(clients[0].bonus_balance || 0) - totalExpired);
+      await API.patch('clients', `id=eq.${clientId}`, { bonus_balance: newBalance });
+    }
+  }
+
+  return totalExpired;
+}
+
+// Загрузить историю бонусов клиента
+async function loadBonusHistory(clientId) {
+  return API.fetch('bonus_transactions',
+    `client_id=eq.${clientId}&order=created_at.desc&limit=20`
+  ) || [];
+}
+
+// Загрузить бонусный баланс клиента
+async function loadClientBonus(masterId, tgUserId) {
+  const clients = await API.fetch('clients',
+    `master_id=eq.${masterId}&tg_user_id=eq.${tgUserId}&select=id,bonus_balance`
+  );
+  if (!clients || !clients[0]) return { balance: 0, clientId: null };
+
+  // Проверяем сгорание
+  await expireOldBonuses(masterId, clients[0].id);
+
+  // Перечитываем баланс после сгорания
+  const updated = await API.fetch('clients', `id=eq.${clients[0].id}&select=bonus_balance`);
+  return {
+    balance: parseFloat(updated?.[0]?.bonus_balance || 0),
+    clientId: clients[0].id,
+  };
+}
+
 // === Главная функция загрузки всех данных ===
 
 async function loadAllData() {

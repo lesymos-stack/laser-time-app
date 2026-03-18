@@ -28,6 +28,9 @@ let MASTER_CODE = '5638';
 // ID мастера из Supabase (для записей и API-запросов)
 let CURRENT_MASTER_ID = null;
 
+// Бонусный баланс текущего клиента
+let CLIENT_BONUS = 0;
+
 // Состояние приложения
 const state = {
   currentScreen: 'home',
@@ -84,6 +87,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       BUSY_INTERVALS = data.busyIntervals || {};
       CURRENT_MASTER_ID = data.master.id;
       MASTER_CODE = data.master.master_code || '0000';
+
+      // Загружаем бонусный баланс клиента
+      const tgUser = tg?.initDataUnsafe?.user;
+      if (tgUser?.id && CURRENT_MASTER_ID) {
+        try {
+          const bonusData = await loadClientBonus(CURRENT_MASTER_ID, tgUser.id);
+          CLIENT_BONUS = bonusData.balance;
+        } catch (e) { CLIENT_BONUS = 0; }
+      }
+
       console.log('✅ Данные загружены из Supabase');
     } else {
       console.warn('⚠️ Supabase недоступен, используем локальные данные');
@@ -411,25 +424,7 @@ function addBonus(price) {
 }
 
 function renderBonus() {
-  const balance = getBonusBalance();
-  const history = JSON.parse(localStorage.getItem('bookingHistory') || '[]');
-
-  const listHTML = history.length
-    ? history.map(b => {
-        const bonus = (b.price * 0.03).toFixed(0);
-        return `
-          <div class="history-card">
-            <div class="history-card-header">
-              <span class="history-card-name">${b.serviceName}</span>
-              <span class="history-card-price bonus-plus">+${bonus} ₽</span>
-            </div>
-            <div class="history-card-details">
-              <span>${b.date}, ${b.time}</span>
-            </div>
-          </div>
-        `;
-      }).join('')
-    : '<div class="history-empty">Бонусы начисляются автоматически — 3% от стоимости каждой услуги.</div>';
+  const balance = CLIENT_BONUS || 0;
 
   return `
     <div class="history-screen">
@@ -437,10 +432,15 @@ function renderBonus() {
       <div class="bonus-balance-card">
         <div class="bonus-balance-label">Ваш баланс</div>
         <div class="bonus-balance-value">${balance} ₽</div>
-        <div class="bonus-balance-hint">3% с каждого посещения</div>
+        <div class="bonus-balance-hint">5% с каждого посещения · сгорают через 3 месяца</div>
       </div>
-      <div class="bonus-history-title">Начисления</div>
-      ${listHTML}
+      <div class="bonus-history-title">Как это работает</div>
+      <div class="history-empty">
+        💎 За каждый визит вам начисляется 5% от стоимости услуги.<br><br>
+        ✅ Бонусы начисляются после того, как мастер подтвердит ваш визит.<br><br>
+        🛒 Бонусы можно списать при следующей записи — в счёт оплаты услуги.<br><br>
+        ⏰ Бонусы сгорают через 3 месяца, если их не использовать.
+      </div>
     </div>
   `;
 }
@@ -716,24 +716,37 @@ function renderMasterBookings() {
     ? bookings.map(b => {
         const serviceName = b.services?.name || 'Услуга';
         const timeShort = b.time ? b.time.substring(0, 5) : '';
-        const statusClass = b.status === 'confirmed' ? 'confirmed' : (b.status === 'cancelled' ? 'cancelled' : 'pending');
-        const statusLabel = b.status === 'confirmed' ? 'Подтверждено' : (b.status === 'cancelled' ? 'Отменено' : 'Ожидает');
+        const statusMap = {
+          confirmed: { cls: 'confirmed', label: 'Подтверждено' },
+          pending: { cls: 'pending', label: 'Ожидает' },
+          cancelled: { cls: 'cancelled', label: 'Отменено' },
+          completed: { cls: 'completed', label: 'Завершено ✅' },
+          no_show: { cls: 'no-show', label: 'Не пришёл ❌' },
+        };
+        const st = statusMap[b.status] || { cls: 'pending', label: b.status };
+        const bonusInfo = b.bonus_credited ? ' · 💎 бонус начислен' : '';
 
         return `
         <div class="admin-booking-card">
           <div class="admin-booking-header">
             <span class="admin-booking-name">${b.client_name || 'Клиент'}${b.client_username ? ' @' + b.client_username : ''}</span>
-            <span class="admin-booking-status ${statusClass}">${statusLabel}</span>
+            <span class="admin-booking-status ${st.cls}">${st.label}</span>
           </div>
           <div class="admin-booking-details">
             <span>${serviceName}</span>
             <span>${b.date}, ${timeShort}</span>
-            <span>${b.price ? b.price + ' ₽' : ''}</span>
+            <span>${b.price ? b.price + ' ₽' : ''}${bonusInfo}</span>
           </div>
           ${b.status === 'pending' ? `
             <div class="admin-booking-actions">
               <button class="admin-btn confirm" data-booking-id="${b.id}">Подтвердить</button>
               <button class="admin-btn cancel" data-booking-id="${b.id}">Отменить</button>
+            </div>
+          ` : ''}
+          ${b.status === 'confirmed' ? `
+            <div class="admin-booking-actions">
+              <button class="admin-btn completed" data-booking-id="${b.id}" data-client-tg="${b.client_tg_id}" data-price="${b.price || 0}">✅ Визит состоялся</button>
+              <button class="admin-btn no-show" data-booking-id="${b.id}" data-client-tg="${b.client_tg_id}">❌ Не пришёл</button>
             </div>
           ` : ''}
         </div>
@@ -1175,6 +1188,20 @@ function renderBooking() {
     <div class="booking-section-title">Ваш телефон</div>
     <input type="tel" id="bookingPhone" class="booking-phone-input" placeholder="+7 (___) ___-__-__" value="${state.clientPhone || ''}" />
 
+    ${CLIENT_BONUS > 0 ? `
+      <div class="bonus-block">
+        <div class="bonus-balance">💎 Ваши бонусы: <b>${CLIENT_BONUS} ₽</b></div>
+        <label class="bonus-checkbox-label">
+          <input type="checkbox" id="useBonusCheckbox" />
+          <span>Списать бонусы</span>
+        </label>
+        <div class="bonus-input-row" id="bonusInputRow" style="display:none">
+          <input type="number" id="bonusAmount" class="bonus-input" min="1" max="${Math.min(CLIENT_BONUS, displayPrice)}" placeholder="Сумма" />
+          <span class="bonus-max">макс. ${Math.min(CLIENT_BONUS, displayPrice)} ₽</span>
+        </div>
+      </div>
+    ` : ''}
+
     <button class="booking-confirm-btn disabled" id="bookingConfirmBtn" disabled>Выберите дату и время</button>
   `;
 }
@@ -1290,6 +1317,17 @@ async function submitBooking() {
   const phone = phoneInput ? phoneInput.value.trim() : '';
   state.clientPhone = phone;
 
+  // Считываем бонусы
+  const useBonusCheckbox = document.getElementById('useBonusCheckbox');
+  const bonusAmountInput = document.getElementById('bonusAmount');
+  let bonusToUse = 0;
+  if (useBonusCheckbox && useBonusCheckbox.checked && bonusAmountInput) {
+    bonusToUse = Math.min(parseFloat(bonusAmountInput.value) || 0, CLIENT_BONUS);
+  }
+
+  const originalPrice = service.salePrice || service.price;
+  const finalPrice = Math.max(0, originalPrice - bonusToUse);
+
   // Помечаем слот как занятый (сразу, чтобы UI обновился)
   BOOKED_SLOTS.push(`${state.selectedDate}_${state.selectedTime}`);
 
@@ -1304,7 +1342,7 @@ async function submitBooking() {
         client_username: tgUser.username || '',
         date: state.selectedDate,
         time: state.selectedTime,
-        price: service.salePrice || service.price,
+        price: finalPrice,
         duration: service.duration,
       });
 
@@ -1313,6 +1351,12 @@ async function submitBooking() {
         // Создаём/обновляем клиента (с телефоном)
         if (tgUser.id) {
           upsertClient(CURRENT_MASTER_ID, tgUser, phone);
+        }
+        // Списываем бонусы
+        if (bonusToUse > 0 && tgUser.id) {
+          await debitBonus(CURRENT_MASTER_ID, tgUser.id, bonusToUse);
+          CLIENT_BONUS = Math.max(0, CLIENT_BONUS - bonusToUse);
+          console.log(`💎 Списано бонусов: ${bonusToUse} ₽`);
         }
       } else {
         console.warn('⚠️ Не удалось сохранить в Supabase');
@@ -1676,6 +1720,53 @@ function bindEvents(screenName, container) {
         });
       });
 
+      // --- Записи: визит состоялся (начислить бонусы) ---
+      container.querySelectorAll('.admin-btn.completed').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const bookingId = btn.dataset.bookingId;
+          const clientTg = parseInt(btn.dataset.clientTg);
+          const price = parseInt(btn.dataset.price) || 0;
+
+          await updateBookingStatus(bookingId, 'completed');
+
+          // Начисляем бонусы (5% от суммы)
+          if (clientTg && price > 0) {
+            const bonus = await creditBonus(CURRENT_MASTER_ID, clientTg, bookingId, price);
+            if (bonus) {
+              haptic('notification', 'success');
+              alert(`Визит подтверждён! Клиенту начислено ${bonus} ₽ бонусов (5%)`);
+              // Уведомляем клиента через бота
+              try {
+                fetch('http://90.156.168.186:3001/api/notify-bonus', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    master_id: CURRENT_MASTER_ID,
+                    client_tg_id: clientTg,
+                    bonus_amount: bonus,
+                  }),
+                });
+              } catch (e) { /* ignore */ }
+            }
+          } else {
+            haptic('notification', 'success');
+          }
+
+          await loadMasterTabData('bookings');
+          refreshAdminContent(container);
+        });
+      });
+
+      // --- Записи: не пришёл ---
+      container.querySelectorAll('.admin-btn.no-show').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await updateBookingStatus(btn.dataset.bookingId, 'no_show');
+          haptic('notification', 'warning');
+          await loadMasterTabData('bookings');
+          refreshAdminContent(container);
+        });
+      });
+
       // --- Услуги: добавить ---
       const addServiceBtn = container.querySelector('#addServiceBtn');
       if (addServiceBtn) {
@@ -1941,6 +2032,15 @@ function bindEvents(screenName, container) {
           updateTelegramButtons('booking');
         });
       });
+
+      // Чекбокс бонусов
+      const useBonusCb = container.querySelector('#useBonusCheckbox');
+      if (useBonusCb) {
+        useBonusCb.addEventListener('change', () => {
+          const row = container.querySelector('#bonusInputRow');
+          if (row) row.style.display = useBonusCb.checked ? 'flex' : 'none';
+        });
+      }
 
       // Кнопка «Записаться»
       if (confirmBtn) {

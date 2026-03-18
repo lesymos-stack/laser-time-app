@@ -1048,6 +1048,63 @@ img {
   color: var(--tg-theme-hint-color, #8e8e93);
 }
 
+.bonus-block {
+  margin: 12px 0;
+  padding: 14px 16px;
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--tg-theme-hint-color, #c7c7cc);
+}
+
+.bonus-balance {
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.bonus-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--tg-theme-text-color, #000);
+  cursor: pointer;
+}
+
+.bonus-checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--tg-theme-button-color, #007AFF);
+}
+
+.bonus-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.bonus-input {
+  width: 120px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid var(--tg-theme-hint-color, #c7c7cc);
+  border-radius: 10px;
+  background: var(--tg-theme-secondary-bg-color, #f2f2f7);
+  color: var(--tg-theme-text-color, #000);
+  outline: none;
+}
+
+.bonus-input:focus {
+  border-color: var(--tg-theme-button-color, #007AFF);
+}
+
+.bonus-max {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+}
+
 .booking-confirm-btn {
   display: block;
   width: 100%;
@@ -1774,6 +1831,26 @@ img {
 .admin-booking-status.cancelled {
   background: #f8d7da;
   color: #721c24;
+}
+
+.admin-booking-status.completed {
+  background: #c3e6cb;
+  color: #0b5e1f;
+}
+
+.admin-booking-status.no-show {
+  background: #ffeeba;
+  color: #856404;
+}
+
+.admin-btn.completed {
+  background: #28a745;
+  color: #fff;
+}
+
+.admin-btn.no-show {
+  background: #ffc107;
+  color: #333;
 }
 
 .admin-booking-details {
