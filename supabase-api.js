@@ -356,6 +356,28 @@ async function uploadServicePhoto(file, masterId) {
   return API.uploadFile('photos', fileName, file);
 }
 
+// ВСЕ категории мастера (включая неактивные)
+async function loadAllCategories(masterId) {
+  return API.fetch('categories',
+    `master_id=eq.${masterId}&order=sort_order.asc&select=*`
+  ) || [];
+}
+
+// Создать категорию
+async function addCategory(data) {
+  return API.post('categories', data);
+}
+
+// Обновить категорию
+async function updateCategory(categoryId, data) {
+  return API.patch('categories', `id=eq.${categoryId}`, data);
+}
+
+// Удалить категорию
+async function deleteCategory(categoryId) {
+  return API.delete('categories', `id=eq.${categoryId}`);
+}
+
 // Все клиенты мастера
 async function loadMasterClients(masterId) {
   return API.fetch('clients',

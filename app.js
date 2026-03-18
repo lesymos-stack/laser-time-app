@@ -40,8 +40,10 @@ const state = {
   masterUnlocked: false,      // разблокирована ли панель мастера
   masterTab: 'bookings',      // текущая вкладка панели мастера
   editingService: null,       // услуга, которую редактируем (null = новая)
+  editingCategory: null,      // категория, которую редактируем (null = новая)
   masterBookings: [],         // записи мастера (загружаются из Supabase)
   masterServices: [],         // все услуги мастера
+  masterCategories: [],       // все категории мастера
   masterClients: [],          // клиенты мастера
 };
 
@@ -651,6 +653,7 @@ function renderMasterPanel() {
     <div class="admin-tabs">
       <button class="admin-tab ${tab === 'bookings' ? 'active' : ''}" data-tab="bookings">Записи</button>
       <button class="admin-tab ${tab === 'services' ? 'active' : ''}" data-tab="services">Услуги</button>
+      <button class="admin-tab ${tab === 'categories' ? 'active' : ''}" data-tab="categories">Категории</button>
       <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
     </div>
   `;
@@ -659,8 +662,10 @@ function renderMasterPanel() {
   switch (tab) {
     case 'bookings': contentHTML = renderMasterBookings(); break;
     case 'services': contentHTML = renderMasterServicesList(); break;
+    case 'categories': contentHTML = renderMasterCategoriesList(); break;
     case 'clients':  contentHTML = renderMasterClientsList(); break;
     case 'serviceForm': contentHTML = renderServiceForm(); break;
+    case 'categoryForm': contentHTML = renderCategoryForm(); break;
   }
 
   return `
@@ -668,6 +673,10 @@ function renderMasterPanel() {
       ${tab === 'serviceForm' ? `
         <div class="admin-back-row">
           <button class="admin-back-btn" id="backToServices">← Назад к услугам</button>
+        </div>
+      ` : tab === 'categoryForm' ? `
+        <div class="admin-back-row">
+          <button class="admin-back-btn" id="backToCategories">← Назад к категориям</button>
         </div>
       ` : tabsHTML}
       <div id="adminContent">${contentHTML}</div>
@@ -785,6 +794,56 @@ function renderMasterClientsList() {
     : '<div class="history-empty">Пока нет клиентов</div>';
 
   return `<div class="master-section-title">Клиенты (${clients.length})</div>${listHTML}`;
+}
+
+// --- Вкладка «Категории» ---
+function renderMasterCategoriesList() {
+  const categories = state.masterCategories;
+
+  const listHTML = categories.length
+    ? categories.map(c => `
+        <div class="admin-service-card" data-cat-id="${c.id}">
+          <div class="admin-service-thumb-placeholder">${c.icon || '📁'}</div>
+          <div class="admin-service-info">
+            <div class="admin-service-name">${c.name}</div>
+            <div class="admin-service-meta">Порядок: ${c.sort_order || 0}</div>
+          </div>
+          <div class="admin-service-actions">
+            <button class="admin-icon-btn edit-cat" data-cat-id="${c.id}" title="Редактировать">✏️</button>
+            <button class="admin-icon-btn delete-cat" data-cat-id="${c.id}" title="Удалить">🗑️</button>
+          </div>
+        </div>
+      `).join('')
+    : '<div class="history-empty">Нет категорий</div>';
+
+  return `
+    <button class="admin-add-btn" id="addCategoryBtn">+ Добавить категорию</button>
+    ${listHTML}
+  `;
+}
+
+// --- Форма добавления/редактирования категории ---
+function renderCategoryForm() {
+  const c = state.editingCategory;
+  const isEdit = !!c;
+  const title = isEdit ? 'Редактировать категорию' : 'Новая категория';
+
+  return `
+    <div class="admin-form">
+      <div class="master-section-title">${title}</div>
+
+      <label class="admin-label">Иконка (эмодзи)</label>
+      <input class="admin-input" id="catIcon" value="${isEdit ? (c.icon || '') : '✨'}" placeholder="✨">
+
+      <label class="admin-label">Название</label>
+      <input class="admin-input" id="catName" value="${isEdit ? c.name : ''}" placeholder="Лазерная эпиляция">
+
+      <label class="admin-label">Порядок сортировки</label>
+      <input class="admin-input" id="catSort" type="number" value="${isEdit ? (c.sort_order || 0) : '0'}" placeholder="0">
+
+      <button class="admin-save-btn" id="saveCategoryBtn">${isEdit ? 'Сохранить' : 'Создать категорию'}</button>
+    </div>
+  `;
 }
 
 // --- Форма добавления/редактирования услуги ---
@@ -1249,11 +1308,27 @@ async function loadMasterTabData(tab) {
       state.masterBookings = await loadMasterBookings(CURRENT_MASTER_ID) || [];
     } else if (tab === 'services') {
       state.masterServices = await loadAllServices(CURRENT_MASTER_ID) || [];
+    } else if (tab === 'categories') {
+      state.masterCategories = await loadAllCategories(CURRENT_MASTER_ID) || [];
     } else if (tab === 'clients') {
       state.masterClients = await loadMasterClients(CURRENT_MASTER_ID) || [];
     }
   } catch (err) {
     console.error('Ошибка загрузки данных панели:', err);
+  }
+}
+
+// Перезагрузить глобальный CATEGORIES (для клиентского каталога)
+async function reloadGlobalCategories() {
+  if (!CURRENT_MASTER_ID) return;
+  const categories = await loadCategories(CURRENT_MASTER_ID);
+  if (categories) {
+    CATEGORIES = categories.map(c => ({
+      id: c.id,
+      name: c.name,
+      icon: c.icon,
+      sort: c.sort_order,
+    }));
   }
 }
 
@@ -1284,6 +1359,7 @@ function refreshAdminContent(container) {
   switch (state.masterTab) {
     case 'bookings': content.innerHTML = renderMasterBookings(); break;
     case 'services': content.innerHTML = renderMasterServicesList(); break;
+    case 'categories': content.innerHTML = renderMasterCategoriesList(); break;
     case 'clients':  content.innerHTML = renderMasterClientsList(); break;
   }
   // Перепривязываем обработчики
@@ -1485,6 +1561,17 @@ function bindEvents(screenName, container) {
         });
       }
 
+      // Кнопка «Назад к категориям»
+      const backToCategories = container.querySelector('#backToCategories');
+      if (backToCategories) {
+        backToCategories.addEventListener('click', () => {
+          state.masterTab = 'categories';
+          state.editingCategory = null;
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
       // --- Записи: подтвердить / отменить ---
       container.querySelectorAll('.admin-btn.confirm').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -1615,6 +1702,82 @@ function bindEvents(screenName, container) {
           await loadMasterTabData('services');
           // Обновляем глобальный SERVICES для клиентского каталога
           await reloadGlobalServices();
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Категории: добавить ---
+      const addCategoryBtn = container.querySelector('#addCategoryBtn');
+      if (addCategoryBtn) {
+        addCategoryBtn.addEventListener('click', () => {
+          state.editingCategory = null;
+          state.masterTab = 'categoryForm';
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Категории: редактировать ---
+      container.querySelectorAll('.admin-icon-btn.edit-cat').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const cat = state.masterCategories.find(c => c.id === btn.dataset.catId);
+          state.editingCategory = { ...cat };
+          state.masterTab = 'categoryForm';
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      });
+
+      // --- Категории: удалить ---
+      container.querySelectorAll('.admin-icon-btn.delete-cat').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Удалить категорию?')) return;
+          await deleteCategory(btn.dataset.catId);
+          haptic('notification', 'success');
+          await loadMasterTabData('categories');
+          await reloadGlobalCategories();
+          refreshAdminContent(container);
+        });
+      });
+
+      // --- Форма категории: сохранить ---
+      const saveCatBtn = container.querySelector('#saveCategoryBtn');
+      if (saveCatBtn) {
+        saveCatBtn.addEventListener('click', async () => {
+          const icon = container.querySelector('#catIcon')?.value.trim() || '✨';
+          const name = container.querySelector('#catName')?.value.trim();
+          const sortOrder = parseInt(container.querySelector('#catSort')?.value) || 0;
+
+          if (!name) {
+            alert('Введите название категории');
+            return;
+          }
+
+          saveCatBtn.disabled = true;
+          saveCatBtn.textContent = 'Сохраняем...';
+
+          const data = {
+            master_id: CURRENT_MASTER_ID,
+            name,
+            icon,
+            sort_order: sortOrder,
+            is_active: true,
+          };
+
+          if (state.editingCategory?.id) {
+            await updateCategory(state.editingCategory.id, data);
+          } else {
+            await addCategory(data);
+          }
+
+          haptic('notification', 'success');
+          state.editingCategory = null;
+          state.masterTab = 'categories';
+          await loadMasterTabData('categories');
+          await reloadGlobalCategories();
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
         });
