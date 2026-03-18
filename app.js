@@ -1721,6 +1721,8 @@ function bindEvents(screenName, container) {
       });
 
       // --- Записи: визит состоялся (начислить бонусы) ---
+      console.log('🔍 Кнопок completed:', container.querySelectorAll('.admin-btn.completed').length);
+      console.log('🔍 Кнопок no-show:', container.querySelectorAll('.admin-btn.no-show').length);
       container.querySelectorAll('.admin-btn.completed').forEach(btn => {
         btn.addEventListener('click', async () => {
           try {
