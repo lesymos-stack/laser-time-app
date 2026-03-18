@@ -1723,47 +1723,68 @@ function bindEvents(screenName, container) {
       // --- Записи: визит состоялся (начислить бонусы) ---
       container.querySelectorAll('.admin-btn.completed').forEach(btn => {
         btn.addEventListener('click', async () => {
-          const bookingId = btn.dataset.bookingId;
-          const clientTg = parseInt(btn.dataset.clientTg);
-          const price = parseInt(btn.dataset.price) || 0;
+          try {
+            const bookingId = btn.dataset.bookingId;
+            const clientTg = parseInt(btn.dataset.clientTg);
+            const price = parseInt(btn.dataset.price) || 0;
 
-          await updateBookingStatus(bookingId, 'completed');
+            btn.disabled = true;
+            btn.textContent = '⏳';
 
-          // Начисляем бонусы (3% от суммы)
-          if (clientTg && price > 0) {
-            const bonus = await creditBonus(CURRENT_MASTER_ID, clientTg, bookingId, price);
-            if (bonus) {
-              haptic('notification', 'success');
-              alert(`Визит подтверждён! Клиенту начислено ${bonus} ₽ бонусов (3%)`);
-              // Уведомляем клиента через бота
-              try {
-                fetch('http://90.156.168.186:3001/api/notify-bonus', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    master_id: CURRENT_MASTER_ID,
-                    client_tg_id: clientTg,
-                    bonus_amount: bonus,
-                  }),
-                });
-              } catch (e) { /* ignore */ }
-            }
-          } else {
+            await updateBookingStatus(bookingId, 'completed');
             haptic('notification', 'success');
-          }
 
-          await loadMasterTabData('bookings');
-          refreshAdminContent(container);
+            // Начисляем бонусы (3% от суммы)
+            let bonusMsg = '';
+            if (clientTg && price > 0) {
+              try {
+                const bonus = await creditBonus(CURRENT_MASTER_ID, clientTg, bookingId, price);
+                if (bonus) {
+                  bonusMsg = ` Клиенту начислено ${bonus} ₽ бонусов (3%)`;
+                  // Уведомляем клиента через бота
+                  fetch('http://90.156.168.186:3001/api/notify-bonus', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      master_id: CURRENT_MASTER_ID,
+                      client_tg_id: clientTg,
+                      bonus_amount: bonus,
+                    }),
+                  }).catch(() => {});
+                }
+              } catch (e) {
+                console.warn('Бонусы не начислены:', e.message);
+              }
+            }
+
+            alert('Визит подтверждён!' + bonusMsg);
+            await loadMasterTabData('bookings');
+            refreshAdminContent(container);
+          } catch (err) {
+            console.error('Ошибка:', err);
+            alert('Ошибка: ' + err.message);
+            btn.disabled = false;
+            btn.textContent = '✅ Визит состоялся';
+          }
         });
       });
 
       // --- Записи: не пришёл ---
       container.querySelectorAll('.admin-btn.no-show').forEach(btn => {
         btn.addEventListener('click', async () => {
-          await updateBookingStatus(btn.dataset.bookingId, 'no_show');
-          haptic('notification', 'warning');
-          await loadMasterTabData('bookings');
-          refreshAdminContent(container);
+          try {
+            btn.disabled = true;
+            btn.textContent = '⏳';
+            await updateBookingStatus(btn.dataset.bookingId, 'no_show');
+            haptic('notification', 'warning');
+            await loadMasterTabData('bookings');
+            refreshAdminContent(container);
+          } catch (err) {
+            console.error('Ошибка:', err);
+            alert('Ошибка: ' + err.message);
+            btn.disabled = false;
+            btn.textContent = '❌ Не пришёл';
+          }
         });
       });
 
