@@ -426,167 +426,59 @@ function renderBonus() {
 // ============================================================
 
 function renderAbonement() {
+  const abonements = state.abonements || [];
+
+  if (!abonements.length) {
+    return `
+      <div class="history-screen">
+        <div class="history-title">Абонементы</div>
+        <div class="history-empty">Пока нет абонементов</div>
+      </div>
+    `;
+  }
+
+  // Группируем по complex_name
+  const grouped = {};
+  abonements.forEach(a => {
+    if (!grouped[a.complex_name]) grouped[a.complex_name] = [];
+    grouped[a.complex_name].push(a);
+  });
+
+  let cardsHTML = '';
+  Object.keys(grouped).forEach(complexName => {
+    const items = grouped[complexName];
+    const basePrice = items[0].base_price;
+
+    cardsHTML += `
+      <div class="abonement-section-title">${complexName}</div>
+      <div class="abonement-section-sub">По комплексу у нас ${basePrice.toLocaleString()} ₽</div>
+    `;
+
+    items.forEach(a => {
+      const oldPrice = a.base_price * a.sessions;
+      const newPrice = Math.round(oldPrice * (1 - a.discount / 100));
+      const saving = oldPrice - newPrice;
+
+      cardsHTML += `
+        <div class="abonement-card">
+          <div class="abonement-card-header">
+            <span class="abonement-card-name">${a.sessions} процедур</span>
+            <span class="abonement-card-badge">-${a.discount}%</span>
+          </div>
+          <div class="abonement-card-prices">
+            <span class="abonement-old-price">${oldPrice.toLocaleString()} ₽</span>
+            <span class="abonement-new-price">${newPrice.toLocaleString()} ₽</span>
+          </div>
+          <div class="abonement-card-saving">Экономия ${saving.toLocaleString()} ₽</div>
+        </div>
+      `;
+    });
+  });
+
   return `
     <div class="history-screen">
       <div class="history-title">Абонементы</div>
-      <div class="abonement-info">Лазерная эпиляция нового поколения — диодный аппарат премиум класса</div>
-
-      <div class="abonement-section-title">Комплекс XS: Глубокое бикини + подмышки</div>
-      <div class="abonement-section-sub">По комплексу у нас 3 250 ₽</div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">10 процедур</span>
-          <span class="abonement-card-badge">-12%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">32 500 ₽</span>
-          <span class="abonement-new-price">28 600 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 3 900 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">8 процедур</span>
-          <span class="abonement-card-badge">-7%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">26 000 ₽</span>
-          <span class="abonement-new-price">24 180 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 1 820 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">5 процедур</span>
-          <span class="abonement-card-badge">-5%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">16 250 ₽</span>
-          <span class="abonement-new-price">15 437 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 813 ₽</div>
-      </div>
-
-      <div class="abonement-section-title">Комплекс S: Гл. бикини + подмышки + голени</div>
-      <div class="abonement-section-sub">По комплексу у нас 4 990 ₽</div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">10 процедур</span>
-          <span class="abonement-card-badge">-12%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">49 900 ₽</span>
-          <span class="abonement-new-price">43 912 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 5 988 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">8 процедур</span>
-          <span class="abonement-card-badge">-7%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">39 920 ₽</span>
-          <span class="abonement-new-price">37 125 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 2 795 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">5 процедур</span>
-          <span class="abonement-card-badge">-5%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">24 950 ₽</span>
-          <span class="abonement-new-price">23 702 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 1 248 ₽</div>
-      </div>
-
-      <div class="abonement-section-title">Комплекс M: Гл. бикини + подмышки + ноги полностью</div>
-      <div class="abonement-section-sub">По комплексу у нас 5 990 ₽</div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">10 процедур</span>
-          <span class="abonement-card-badge">-12%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">59 900 ₽</span>
-          <span class="abonement-new-price">52 712 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 7 188 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">8 процедур</span>
-          <span class="abonement-card-badge">-7%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">47 930 ₽</span>
-          <span class="abonement-new-price">44 565 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 3 365 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">5 процедур</span>
-          <span class="abonement-card-badge">-5%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">29 950 ₽</span>
-          <span class="abonement-new-price">28 452 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 1 498 ₽</div>
-      </div>
-
-      <div class="abonement-section-title">Комплекс L: Гл. бикини + подмышки + руки/ноги полностью</div>
-      <div class="abonement-section-sub">По комплексу у нас 7 900 ₽</div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">10 процедур</span>
-          <span class="abonement-card-badge">-12%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">70 000 ₽</span>
-          <span class="abonement-new-price">69 520 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 9 480 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">8 процедур</span>
-          <span class="abonement-card-badge">-7%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">63 200 ₽</span>
-          <span class="abonement-new-price">58 776 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 4 424 ₽</div>
-      </div>
-
-      <div class="abonement-card">
-        <div class="abonement-card-header">
-          <span class="abonement-card-name">5 процедур</span>
-          <span class="abonement-card-badge">-5%</span>
-        </div>
-        <div class="abonement-card-prices">
-          <span class="abonement-old-price">39 500 ₽</span>
-          <span class="abonement-new-price">37 525 ₽</span>
-        </div>
-        <div class="abonement-card-saving">Экономия 1 975 ₽</div>
-      </div>
-
+      ${cardsHTML}
       <div class="abonement-hint">Можно оформить рассрочку</div>
     </div>
   `;
@@ -633,6 +525,7 @@ function renderMasterPanel() {
       <button class="admin-tab ${tab === 'services' ? 'active' : ''}" data-tab="services">Услуги</button>
       <button class="admin-tab ${tab === 'categories' ? 'active' : ''}" data-tab="categories">Категории</button>
       <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
+      <button class="admin-tab ${tab === 'abonements' ? 'active' : ''}" data-tab="abonements">Абонементы</button>
       <button class="admin-tab ${tab === 'broadcast' ? 'active' : ''}" data-tab="broadcast">Рассылка</button>
     </div>
   `;
@@ -642,10 +535,12 @@ function renderMasterPanel() {
     case 'bookings': contentHTML = renderMasterBookings(); break;
     case 'services': contentHTML = renderMasterServicesList(); break;
     case 'categories': contentHTML = renderMasterCategoriesList(); break;
+    case 'abonements': contentHTML = renderMasterAbonements(); break;
     case 'clients':  contentHTML = renderMasterClientsList(); break;
     case 'broadcast': contentHTML = renderBroadcastForm(); break;
     case 'serviceForm': contentHTML = renderServiceForm(); break;
     case 'categoryForm': contentHTML = renderCategoryForm(); break;
+    case 'abonementForm': contentHTML = renderAbonementForm(); break;
   }
 
   return `
@@ -657,6 +552,10 @@ function renderMasterPanel() {
       ` : tab === 'categoryForm' ? `
         <div class="admin-back-row">
           <button class="admin-back-btn" id="backToCategories">← Назад к категориям</button>
+        </div>
+      ` : tab === 'abonementForm' ? `
+        <div class="admin-back-row">
+          <button class="admin-back-btn" id="backToAbonements">← Назад к абонементам</button>
         </div>
       ` : tabsHTML}
       <div id="adminContent">${contentHTML}</div>
@@ -826,6 +725,77 @@ function renderMasterClientsList() {
     : '<div class="history-empty">Пока нет клиентов</div>';
 
   return `<div class="master-section-title">Клиенты (${clients.length})</div>${listHTML}`;
+}
+
+// --- Вкладка «Абонементы» (мастер) ---
+function renderMasterAbonements() {
+  const abonements = state.masterAbonements || [];
+
+  if (!abonements.length) {
+    return `
+      <button class="admin-add-btn" id="addAbonementBtn">+ Добавить абонемент</button>
+      <div class="history-empty">Нет абонементов</div>
+    `;
+  }
+
+  // Группируем по complex_name
+  const grouped = {};
+  abonements.forEach(a => {
+    if (!grouped[a.complex_name]) grouped[a.complex_name] = [];
+    grouped[a.complex_name].push(a);
+  });
+
+  let html = '<button class="admin-add-btn" id="addAbonementBtn">+ Добавить абонемент</button>';
+
+  Object.keys(grouped).forEach(complexName => {
+    const items = grouped[complexName];
+    const basePrice = items[0].base_price;
+    html += `<div class="admin-category-group">
+      <div class="admin-category-title">🏷️ ${complexName}</div>
+      <div class="admin-abonement-base">Цена за процедуру: ${basePrice} ₽</div>`;
+
+    items.forEach(a => {
+      const oldPrice = a.base_price * a.sessions;
+      const newPrice = Math.round(oldPrice * (1 - a.discount / 100));
+      const saving = oldPrice - newPrice;
+      html += `
+        <div class="admin-service-card" data-abon-id="${a.id}">
+          <div class="admin-service-info">
+            <div class="admin-service-name">${a.sessions} процедур · −${a.discount}%</div>
+            <div class="admin-service-meta">${oldPrice.toLocaleString()} → ${newPrice.toLocaleString()} ₽ (экономия ${saving.toLocaleString()} ₽)</div>
+          </div>
+          <div class="admin-service-actions">
+            <button class="admin-icon-btn edit-abon" data-abon-id="${a.id}" title="Редактировать">✏️</button>
+            <button class="admin-icon-btn delete-abon" data-abon-id="${a.id}" title="Удалить">🗑️</button>
+          </div>
+        </div>`;
+    });
+
+    html += '</div>';
+  });
+
+  return html;
+}
+
+function renderAbonementForm() {
+  const isEdit = !!state.editingAbonement?.id;
+  const a = state.editingAbonement || {};
+  return `
+    <div class="admin-form">
+      <div class="admin-form-title">${isEdit ? 'Редактировать абонемент' : 'Новый абонемент'}</div>
+      <label class="admin-label">Название комплекса</label>
+      <input class="admin-input" id="abonComplexName" value="${a.complex_name || ''}" placeholder="Комплекс XS: Глубокое бикини + подмышки">
+      <label class="admin-label">Цена за 1 процедуру, ₽</label>
+      <input class="admin-input" id="abonBasePrice" type="number" value="${a.base_price || ''}" placeholder="3250">
+      <label class="admin-label">Кол-во процедур</label>
+      <input class="admin-input" id="abonSessions" type="number" value="${a.sessions || ''}" placeholder="10">
+      <label class="admin-label">Скидка, %</label>
+      <input class="admin-input" id="abonDiscount" type="number" value="${a.discount || 0}" placeholder="12">
+      <label class="admin-label">Порядок сортировки</label>
+      <input class="admin-input" id="abonSort" type="number" value="${a.sort_order || 0}">
+      <button class="admin-save-btn" id="saveAbonementBtn">${isEdit ? 'Сохранить' : 'Создать абонемент'}</button>
+    </div>
+  `;
 }
 
 // --- Вкладка «Рассылка» ---
@@ -1411,6 +1381,8 @@ async function loadMasterTabData(tab) {
       state.masterCategories = await loadAllCategories(CURRENT_MASTER_ID) || [];
     } else if (tab === 'clients') {
       state.masterClients = await loadMasterClients(CURRENT_MASTER_ID) || [];
+    } else if (tab === 'abonements') {
+      state.masterAbonements = await loadAbonements(CURRENT_MASTER_ID) || [];
     }
   } catch (err) {
     console.error('Ошибка загрузки данных панели:', err);
@@ -1460,6 +1432,7 @@ function refreshAdminContent(container) {
     case 'services': content.innerHTML = renderMasterServicesList(); break;
     case 'categories': content.innerHTML = renderMasterCategoriesList(); break;
     case 'clients':  content.innerHTML = renderMasterClientsList(); break;
+    case 'abonements': content.innerHTML = renderMasterAbonements(); break;
     case 'broadcast': content.innerHTML = renderBroadcastForm(); break;
   }
   // Перепривязываем обработчики
@@ -1560,7 +1533,10 @@ function bindEvents(screenName, container) {
       // Кнопка «Абонементы»
       const abonementBtn = container.querySelector('#homeAbonementBtn');
       if (abonementBtn) {
-        abonementBtn.addEventListener('click', () => {
+        abonementBtn.addEventListener('click', async () => {
+          if (CURRENT_MASTER_ID) {
+            state.abonements = await loadAbonements(CURRENT_MASTER_ID) || [];
+          }
           navigateTo('abonement');
         });
       }
@@ -1667,6 +1643,95 @@ function bindEvents(screenName, container) {
         backToCategories.addEventListener('click', () => {
           state.masterTab = 'categories';
           state.editingCategory = null;
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Абонементы: назад ---
+      const backToAbonements = container.querySelector('#backToAbonements');
+      if (backToAbonements) {
+        backToAbonements.addEventListener('click', () => {
+          state.masterTab = 'abonements';
+          state.editingAbonement = null;
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Абонементы: добавить ---
+      const addAbonementBtn = container.querySelector('#addAbonementBtn');
+      if (addAbonementBtn) {
+        addAbonementBtn.addEventListener('click', () => {
+          state.editingAbonement = null;
+          state.masterTab = 'abonementForm';
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Абонементы: редактировать ---
+      container.querySelectorAll('.admin-icon-btn.edit-abon').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const abon = (state.masterAbonements || []).find(a => a.id === btn.dataset.abonId);
+          state.editingAbonement = { ...abon };
+          state.masterTab = 'abonementForm';
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        });
+      });
+
+      // --- Абонементы: удалить ---
+      container.querySelectorAll('.admin-icon-btn.delete-abon').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Удалить абонемент?')) return;
+          await deleteAbonement(btn.dataset.abonId);
+          haptic('notification', 'success');
+          await loadMasterTabData('abonements');
+          refreshAdminContent(container);
+        });
+      });
+
+      // --- Абонементы: сохранить ---
+      const saveAbonementBtn = container.querySelector('#saveAbonementBtn');
+      if (saveAbonementBtn) {
+        saveAbonementBtn.addEventListener('click', async () => {
+          const complexName = container.querySelector('#abonComplexName')?.value.trim();
+          const basePrice = parseInt(container.querySelector('#abonBasePrice')?.value) || 0;
+          const sessions = parseInt(container.querySelector('#abonSessions')?.value) || 0;
+          const discount = parseInt(container.querySelector('#abonDiscount')?.value) || 0;
+          const sortOrder = parseInt(container.querySelector('#abonSort')?.value) || 0;
+
+          if (!complexName || !basePrice || !sessions) {
+            alert('Заполните название, цену и кол-во процедур');
+            return;
+          }
+
+          const data = {
+            master_id: CURRENT_MASTER_ID,
+            complex_name: complexName,
+            base_price: basePrice,
+            sessions,
+            discount,
+            sort_order: sortOrder,
+            is_active: true,
+          };
+
+          saveAbonementBtn.disabled = true;
+          saveAbonementBtn.textContent = 'Сохраняем...';
+
+          if (state.editingAbonement?.id) {
+            await updateAbonement(state.editingAbonement.id, data);
+          } else {
+            await addAbonement(data);
+          }
+
+          haptic('notification', 'success');
+          state.editingAbonement = null;
+          state.masterTab = 'abonements';
+          await loadMasterTabData('abonements');
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
         });

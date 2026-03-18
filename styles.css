@@ -1908,6 +1908,12 @@ img {
   margin-bottom: 8px;
 }
 
+.admin-abonement-base {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #999);
+  padding: 0 4px 4px;
+}
+
 .admin-category-title {
   font-size: 15px;
   font-weight: 600;

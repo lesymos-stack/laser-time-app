@@ -402,6 +402,26 @@ async function deleteCategory(categoryId) {
   return API.delete('categories', `id=eq.${categoryId}`);
 }
 
+// === Абонементы ===
+
+async function loadAbonements(masterId) {
+  return API.fetch('abonements',
+    `master_id=eq.${masterId}&is_active=eq.true&order=sort_order.asc,sessions.asc&select=*`
+  ) || [];
+}
+
+async function addAbonement(data) {
+  return API.post('abonements', data);
+}
+
+async function updateAbonement(id, data) {
+  return API.patch('abonements', `id=eq.${id}`, data);
+}
+
+async function deleteAbonement(id) {
+  return API.delete('abonements', `id=eq.${id}`);
+}
+
 // Все клиенты мастера
 async function loadMasterClients(masterId) {
   return API.fetch('clients',
