@@ -411,7 +411,7 @@ async function loadMasterClients(masterId) {
 
 // === Бонусная система ===
 
-// Начислить бонусы за визит (5% от суммы)
+// Начислить бонусы за визит (3% от суммы)
 async function creditBonus(masterId, clientTgId, bookingId, amount) {
   // Находим клиента
   const clients = await API.fetch('clients',
@@ -420,7 +420,7 @@ async function creditBonus(masterId, clientTgId, bookingId, amount) {
   if (!clients || !clients[0]) return null;
 
   const client = clients[0];
-  const bonusAmount = Math.round(amount * 0.05 * 100) / 100; // 5%
+  const bonusAmount = Math.round(amount * 0.03 * 100) / 100; // 3%
   const expiresAt = new Date();
   expiresAt.setMonth(expiresAt.getMonth() + 3); // через 3 месяца
 
@@ -431,7 +431,7 @@ async function creditBonus(masterId, clientTgId, bookingId, amount) {
     booking_id: bookingId,
     amount: bonusAmount,
     type: 'credit',
-    description: `Начисление 5% за визит`,
+    description: `Начисление 3% за визит`,
     expires_at: expiresAt.toISOString(),
   });
 

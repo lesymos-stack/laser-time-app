@@ -432,11 +432,11 @@ function renderBonus() {
       <div class="bonus-balance-card">
         <div class="bonus-balance-label">Ваш баланс</div>
         <div class="bonus-balance-value">${balance} ₽</div>
-        <div class="bonus-balance-hint">5% с каждого посещения · сгорают через 3 месяца</div>
+        <div class="bonus-balance-hint">3% с каждого посещения · сгорают через 3 месяца</div>
       </div>
       <div class="bonus-history-title">Как это работает</div>
       <div class="history-empty">
-        💎 За каждый визит вам начисляется 5% от стоимости услуги.<br><br>
+        💎 За каждый визит вам начисляется 3% от стоимости услуги.<br><br>
         ✅ Бонусы начисляются после того, как мастер подтвердит ваш визит.<br><br>
         🛒 Бонусы можно списать при следующей записи — в счёт оплаты услуги.<br><br>
         ⏰ Бонусы сгорают через 3 месяца, если их не использовать.
@@ -1729,12 +1729,12 @@ function bindEvents(screenName, container) {
 
           await updateBookingStatus(bookingId, 'completed');
 
-          // Начисляем бонусы (5% от суммы)
+          // Начисляем бонусы (3% от суммы)
           if (clientTg && price > 0) {
             const bonus = await creditBonus(CURRENT_MASTER_ID, clientTg, bookingId, price);
             if (bonus) {
               haptic('notification', 'success');
-              alert(`Визит подтверждён! Клиенту начислено ${bonus} ₽ бонусов (5%)`);
+              alert(`Визит подтверждён! Клиенту начислено ${bonus} ₽ бонусов (3%)`);
               // Уведомляем клиента через бота
               try {
                 fetch('http://90.156.168.186:3001/api/notify-bonus', {
