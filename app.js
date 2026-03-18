@@ -1675,7 +1675,7 @@ function bindEvents(screenName, container) {
           sendBroadcastBtn.textContent = 'Отправка...';
 
           try {
-            const resp = await fetch(`http://90.156.168.186:3001/api/broadcast`, {
+            const resp = await fetch(`/api/broadcast`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1730,7 +1730,7 @@ function bindEvents(screenName, container) {
           btn.disabled = true;
           btn.textContent = '⏳';
 
-          const resp = await fetch('http://90.156.168.186:3001/api/complete-visit', {
+          const resp = await fetch('/api/complete-visit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
