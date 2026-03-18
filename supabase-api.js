@@ -183,7 +183,7 @@ async function loadDayOverrides(masterId, fromDate, toDate) {
 
 async function loadBookedSlots(masterId, fromDate, toDate) {
   return API.fetch('bookings',
-    `master_id=eq.${masterId}&date=gte.${fromDate}&date=lte.${toDate}&status=in.(confirmed,pending)&select=date,time`
+    `master_id=eq.${masterId}&date=gte.${fromDate}&date=lte.${toDate}&status=in.(confirmed,pending)&select=date,time,duration`
   ) || [];
 }
 
@@ -217,71 +217,95 @@ async function createBooking(bookingData) {
 
 // === Создание/обновление клиента ===
 
-async function upsertClient(masterId, tgUser) {
+async function upsertClient(masterId, tgUser, phone) {
   // Проверяем, есть ли уже клиент
   const existing = await loadClient(masterId, tgUser.id);
 
   if (existing) {
+    // Обновляем телефон если он передан
+    if (phone) {
+      await API.patch('clients', `id=eq.${existing.id}`, { phone });
+    }
     return existing;
   }
 
   // Создаём нового клиента
-  return API.post('clients', {
+  const data = {
     master_id: masterId,
     tg_user_id: tgUser.id,
     first_name: tgUser.first_name || '',
     username: tgUser.username || '',
-  });
+  };
+  if (phone) data.phone = phone;
+  return API.post('clients', data);
 }
 
 
 // === Вычисление свободных слотов ===
 // Берём шаблон расписания + исключения + занятые слоты → возвращаем свободные
 
+// Перевод "HH:MM" в минуты от полуночи
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
 function computeAvailableSlots(scheduleRows, overrides, bookedSlots, daysAhead = 14) {
   const slots = {};
   const today = new Date();
+
+  // Подготовка: занятые интервалы по дням { "2026-03-20": [{start: 600, end: 660}, ...] }
+  const busyByDate = {};
+  for (const b of bookedSlots) {
+    const startMin = timeToMinutes(b.time.substring(0, 5));
+    const dur = b.duration || 30;
+    if (!busyByDate[b.date]) busyByDate[b.date] = [];
+    busyByDate[b.date].push({ start: startMin, end: startMin + dur });
+  }
 
   for (let i = 0; i < daysAhead; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
     const dateKey = formatDateKey(date);
-    const dayOfWeek = date.getDay(); // 0=Вс, 1=Пн, ..., 6=Сб
+    const dayOfWeek = date.getDay();
 
-    // Проверяем override (выходной или особый график)
     const override = overrides.find(o => o.date === dateKey);
+    if (override && override.is_day_off) continue;
 
-    if (override && override.is_day_off) {
-      // Выходной — пропускаем
-      continue;
-    }
-
-    // Находим расписание для этого дня недели
     const scheduleRow = scheduleRows.find(s => s.day_of_week === dayOfWeek);
+    if (!scheduleRow) continue;
 
-    if (!scheduleRow) {
-      // Нет расписания на этот день (например, воскресенье)
-      continue;
-    }
-
-    // Определяем часы работы (override может менять время)
     const startTime = override && override.start_time ? override.start_time : scheduleRow.start_time;
     const endTime = override && override.end_time ? override.end_time : scheduleRow.end_time;
     const interval = scheduleRow.slot_interval;
 
-    // Генерируем слоты
     const daySlots = generateTimeSlots(startTime, endTime, interval);
+    const busy = busyByDate[dateKey] || [];
 
-    // Убираем занятые
-    const bookedTimes = bookedSlots
-      .filter(b => b.date === dateKey)
-      .map(b => b.time.substring(0, 5)); // "10:00:00" → "10:00"
-
-    slots[dateKey] = daySlots.filter(s => !bookedTimes.includes(s));
+    // Фильтруем: слот свободен, если ни одна запись не перекрывает его
+    slots[dateKey] = daySlots.filter(slotTime => {
+      const slotMin = timeToMinutes(slotTime);
+      // Проверяем: этот слот попадает внутрь какой-то занятой записи?
+      return !busy.some(b => slotMin >= b.start && slotMin < b.end);
+    });
   }
 
   return slots;
+}
+
+// Глобально доступные занятые интервалы (для проверки длительности на клиенте)
+let BUSY_INTERVALS = {};
+
+function computeBusyIntervals(bookedSlots) {
+  const busy = {};
+  for (const b of bookedSlots) {
+    const startMin = timeToMinutes(b.time.substring(0, 5));
+    const dur = b.duration || 30;
+    if (!busy[b.date]) busy[b.date] = [];
+    busy[b.date].push({ start: startMin, end: startMin + dur });
+  }
+  return busy;
 }
 
 // Генерация массива слотов: "10:00", "10:30", "11:00", ...
@@ -414,7 +438,10 @@ async function loadAllData() {
   // 3. Вычисляем свободные слоты
   const schedule = computeAvailableSlots(scheduleRows, overrides, bookedSlots);
 
-  // 4. Возвращаем всё в формате, совместимом с текущим app.js
+  // 4. Вычисляем занятые интервалы (для проверки длительности на клиенте)
+  BUSY_INTERVALS = computeBusyIntervals(bookedSlots);
+
+  // 5. Возвращаем всё в формате, совместимом с текущим app.js
   return {
     master: {
       id: master.id,
@@ -445,5 +472,6 @@ async function loadAllData() {
     })),
     schedule: schedule,
     bookedSlots: bookedSlots.map(b => `${b.date}_${b.time.substring(0, 5)}`),
+    busyIntervals: BUSY_INTERVALS,
   };
 }

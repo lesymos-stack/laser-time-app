@@ -45,6 +45,7 @@ const state = {
   masterServices: [],         // все услуги мастера
   masterCategories: [],       // все категории мастера
   masterClients: [],          // клиенты мастера
+  clientPhone: '',            // телефон клиента для записи
 };
 
 // Экраны, на которых виден таб-бар
@@ -80,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       SERVICES = data.services;
       SCHEDULE = data.schedule;
       BOOKED_SLOTS = data.bookedSlots;
+      BUSY_INTERVALS = data.busyIntervals || {};
       CURRENT_MASTER_ID = data.master.id;
       MASTER_CODE = data.master.master_code || '0000';
       console.log('✅ Данные загружены из Supabase');
@@ -655,6 +657,7 @@ function renderMasterPanel() {
       <button class="admin-tab ${tab === 'services' ? 'active' : ''}" data-tab="services">Услуги</button>
       <button class="admin-tab ${tab === 'categories' ? 'active' : ''}" data-tab="categories">Категории</button>
       <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
+      <button class="admin-tab ${tab === 'broadcast' ? 'active' : ''}" data-tab="broadcast">Рассылка</button>
     </div>
   `;
 
@@ -664,6 +667,7 @@ function renderMasterPanel() {
     case 'services': contentHTML = renderMasterServicesList(); break;
     case 'categories': contentHTML = renderMasterCategoriesList(); break;
     case 'clients':  contentHTML = renderMasterClientsList(); break;
+    case 'broadcast': contentHTML = renderBroadcastForm(); break;
     case 'serviceForm': contentHTML = renderServiceForm(); break;
     case 'categoryForm': contentHTML = renderCategoryForm(); break;
   }
@@ -783,6 +787,7 @@ function renderMasterClientsList() {
         return `
         <div class="admin-client-card">
           <div class="admin-client-name">${c.first_name || 'Клиент'}${c.username ? ' @' + c.username : ''}</div>
+          ${c.phone ? '<div class="admin-client-phone">📞 ' + c.phone + '</div>' : ''}
           <div class="admin-client-meta">
             <span>Визитов: ${c.visits_count || 0}</span>
             <span>Бонусы: ${c.bonus_balance || 0} ₽</span>
@@ -794,6 +799,17 @@ function renderMasterClientsList() {
     : '<div class="history-empty">Пока нет клиентов</div>';
 
   return `<div class="master-section-title">Клиенты (${clients.length})</div>${listHTML}`;
+}
+
+// --- Вкладка «Рассылка» ---
+function renderBroadcastForm() {
+  return `
+    <div class="master-section-title">Рассылка клиентам</div>
+    <div class="broadcast-info">Сообщение будет отправлено всем вашим клиентам через бота.</div>
+    <textarea id="broadcastText" class="broadcast-textarea" placeholder="Введите текст сообщения..." rows="5"></textarea>
+    <button class="booking-confirm-btn" id="sendBroadcastBtn">Отправить рассылку</button>
+    <div id="broadcastResult" class="broadcast-result"></div>
+  `;
 }
 
 // --- Вкладка «Категории» ---
@@ -1089,6 +1105,19 @@ function renderService() {
 // ЭКРАН 4: ЗАПИСЬ (ДАТА/ВРЕМЯ)
 // ============================================================
 
+// Проверяет, помещается ли услуга длительностью duration минут в слот startTime
+// без пересечения с занятыми интервалами в этот день
+function isSlotAvailableForDuration(dateKey, startTime, duration) {
+  const busy = BUSY_INTERVALS[dateKey] || [];
+  if (busy.length === 0) return true;
+
+  const slotStart = timeToMinutes(startTime);
+  const slotEnd = slotStart + duration;
+
+  // Проверяем: интервал [slotStart, slotEnd) не пересекается ни с одним занятым
+  return !busy.some(b => slotStart < b.end && slotEnd > b.start);
+}
+
 function renderBooking() {
   const service = state.selectedService;
   if (!service) return '';
@@ -1116,10 +1145,12 @@ function renderBooking() {
     if (slots.length === 0) {
       timeSlotsHTML = '<div class="no-slots">Нет свободных слотов</div>';
     } else {
+      const serviceDuration = service.duration || 30;
       timeSlotsHTML = '<div class="time-slots">' + slots.map(time => {
         const isBooked = BOOKED_SLOTS.includes(`${state.selectedDate}_${time}`);
+        const isFits = isSlotAvailableForDuration(state.selectedDate, time, serviceDuration);
         const isSelected = state.selectedTime === time;
-        const cls = isBooked ? 'booked' : (isSelected ? 'selected' : '');
+        const cls = (isBooked || !isFits) ? 'booked' : (isSelected ? 'selected' : '');
         return `<div class="time-slot ${cls}" data-time="${time}">${time}</div>`;
       }).join('') + '</div>';
     }
@@ -1141,6 +1172,9 @@ function renderBooking() {
       ${timeSlotsHTML}
     </div>
 
+    <div class="booking-section-title">Ваш телефон</div>
+    <input type="tel" id="bookingPhone" class="booking-phone-input" placeholder="+7 (___) ___-__-__" value="${state.clientPhone || ''}" />
+
     <button class="booking-confirm-btn disabled" id="bookingConfirmBtn" disabled>Выберите дату и время</button>
   `;
 }
@@ -1161,10 +1195,12 @@ function updateTimeSlots() {
     return;
   }
 
+  const serviceDuration = state.selectedService ? (state.selectedService.duration || 30) : 30;
   container.innerHTML = '<div class="time-slots">' + slots.map(time => {
     const isBooked = BOOKED_SLOTS.includes(`${state.selectedDate}_${time}`);
+    const isFits = isSlotAvailableForDuration(state.selectedDate, time, serviceDuration);
     const isSelected = state.selectedTime === time;
-    const cls = isBooked ? 'booked' : (isSelected ? 'selected' : '');
+    const cls = (isBooked || !isFits) ? 'booked' : (isSelected ? 'selected' : '');
     return `<div class="time-slot ${cls}" data-time="${time}">${time}</div>`;
   }).join('') + '</div>';
 
@@ -1249,6 +1285,11 @@ async function submitBooking() {
   const service = state.selectedService;
   const tgUser = tg?.initDataUnsafe?.user || {};
 
+  // Считываем телефон из инпута
+  const phoneInput = document.getElementById('bookingPhone');
+  const phone = phoneInput ? phoneInput.value.trim() : '';
+  state.clientPhone = phone;
+
   // Помечаем слот как занятый (сразу, чтобы UI обновился)
   BOOKED_SLOTS.push(`${state.selectedDate}_${state.selectedTime}`);
 
@@ -1269,9 +1310,9 @@ async function submitBooking() {
 
       if (result) {
         console.log('✅ Запись сохранена в Supabase:', result);
-        // Создаём/обновляем клиента
+        // Создаём/обновляем клиента (с телефоном)
         if (tgUser.id) {
-          upsertClient(CURRENT_MASTER_ID, tgUser);
+          upsertClient(CURRENT_MASTER_ID, tgUser, phone);
         }
       } else {
         console.warn('⚠️ Не удалось сохранить в Supabase');
@@ -1361,6 +1402,7 @@ function refreshAdminContent(container) {
     case 'services': content.innerHTML = renderMasterServicesList(); break;
     case 'categories': content.innerHTML = renderMasterCategoriesList(); break;
     case 'clients':  content.innerHTML = renderMasterClientsList(); break;
+    case 'broadcast': content.innerHTML = renderBroadcastForm(); break;
   }
   // Перепривязываем обработчики
   bindEvents('masterPanel', container);
@@ -1569,6 +1611,50 @@ function bindEvents(screenName, container) {
           state.editingCategory = null;
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
+        });
+      }
+
+      // --- Рассылка ---
+      const sendBroadcastBtn = container.querySelector('#sendBroadcastBtn');
+      if (sendBroadcastBtn) {
+        sendBroadcastBtn.addEventListener('click', async () => {
+          const textarea = container.querySelector('#broadcastText');
+          const resultDiv = container.querySelector('#broadcastResult');
+          const message = textarea ? textarea.value.trim() : '';
+
+          if (!message) {
+            if (resultDiv) resultDiv.innerHTML = '<span style="color:red">Введите текст сообщения</span>';
+            return;
+          }
+
+          sendBroadcastBtn.disabled = true;
+          sendBroadcastBtn.textContent = 'Отправка...';
+
+          try {
+            const resp = await fetch(`http://90.156.168.186:3001/api/broadcast`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                master_id: CURRENT_MASTER_ID,
+                master_code: MASTER_CODE,
+                message: message,
+              }),
+            });
+
+            const data = await resp.json();
+            if (resp.ok) {
+              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Отправлено: ${data.sent} из ${data.total}</span>`;
+              if (textarea) textarea.value = '';
+              haptic('notification', 'success');
+            } else {
+              if (resultDiv) resultDiv.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`;
+            }
+          } catch (err) {
+            if (resultDiv) resultDiv.innerHTML = `<span style="color:red">Ошибка сети: ${err.message}</span>`;
+          }
+
+          sendBroadcastBtn.disabled = false;
+          sendBroadcastBtn.textContent = 'Отправить рассылку';
         });
       }
 
