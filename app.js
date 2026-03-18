@@ -1720,74 +1720,56 @@ function bindEvents(screenName, container) {
         });
       });
 
-      // --- Записи: визит состоялся (начислить бонусы) ---
-      console.log('🔍 Кнопок completed:', container.querySelectorAll('.admin-btn.completed').length);
-      console.log('🔍 Кнопок no-show:', container.querySelectorAll('.admin-btn.no-show').length);
-      container.querySelectorAll('.admin-btn.completed').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          try {
-            const bookingId = btn.dataset.bookingId;
-            const clientTg = parseInt(btn.dataset.clientTg);
-            const price = parseInt(btn.dataset.price) || 0;
+      // --- Записи: визит состоялся / не пришёл (через API бота) ---
+      async function handleVisitAction(btn, action) {
+        try {
+          const bookingId = btn.dataset.bookingId;
+          const clientTg = parseInt(btn.dataset.clientTg) || 0;
+          const price = parseInt(btn.dataset.price) || 0;
 
-            btn.disabled = true;
-            btn.textContent = '⏳';
+          btn.disabled = true;
+          btn.textContent = '⏳';
 
-            await updateBookingStatus(bookingId, 'completed');
-            haptic('notification', 'success');
+          const resp = await fetch('http://90.156.168.186:3001/api/complete-visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              master_id: CURRENT_MASTER_ID,
+              master_code: MASTER_CODE,
+              booking_id: bookingId,
+              client_tg_id: clientTg,
+              price: price,
+              action: action,
+            }),
+          });
 
-            // Начисляем бонусы (3% от суммы)
-            let bonusMsg = '';
-            if (clientTg && price > 0) {
-              try {
-                const bonus = await creditBonus(CURRENT_MASTER_ID, clientTg, bookingId, price);
-                if (bonus) {
-                  bonusMsg = ` Клиенту начислено ${bonus} ₽ бонусов (3%)`;
-                  // Уведомляем клиента через бота
-                  fetch('http://90.156.168.186:3001/api/notify-bonus', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      master_id: CURRENT_MASTER_ID,
-                      client_tg_id: clientTg,
-                      bonus_amount: bonus,
-                    }),
-                  }).catch(() => {});
-                }
-              } catch (e) {
-                console.warn('Бонусы не начислены:', e.message);
-              }
-            }
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Ошибка сервера');
 
-            alert('Визит подтверждён!' + bonusMsg);
-            await loadMasterTabData('bookings');
-            refreshAdminContent(container);
-          } catch (err) {
-            console.error('Ошибка:', err);
-            alert('Ошибка: ' + err.message);
-            btn.disabled = false;
-            btn.textContent = '✅ Визит состоялся';
+          haptic('notification', action === 'completed' ? 'success' : 'warning');
+
+          if (data.bonus > 0) {
+            alert(`Визит подтверждён! Клиенту начислено ${data.bonus} ₽ бонусов (3%)`);
+          } else if (action === 'completed') {
+            alert('Визит подтверждён!');
           }
-        });
+
+          await loadMasterTabData('bookings');
+          refreshAdminContent(container);
+        } catch (err) {
+          console.error('Ошибка:', err);
+          alert('Ошибка: ' + err.message);
+          btn.disabled = false;
+          btn.textContent = action === 'completed' ? '✅ Визит состоялся' : '❌ Не пришёл';
+        }
+      }
+
+      container.querySelectorAll('.admin-btn.completed').forEach(btn => {
+        btn.addEventListener('click', () => handleVisitAction(btn, 'completed'));
       });
 
-      // --- Записи: не пришёл ---
       container.querySelectorAll('.admin-btn.no-show').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          try {
-            btn.disabled = true;
-            btn.textContent = '⏳';
-            await updateBookingStatus(btn.dataset.bookingId, 'no_show');
-            haptic('notification', 'warning');
-            await loadMasterTabData('bookings');
-            refreshAdminContent(container);
-          } catch (err) {
-            console.error('Ошибка:', err);
-            alert('Ошибка: ' + err.message);
-            btn.disabled = false;
-            btn.textContent = '❌ Не пришёл';
-          }
-        });
+        btn.addEventListener('click', () => handleVisitAction(btn, 'no_show'));
       });
 
       // --- Услуги: добавить ---
