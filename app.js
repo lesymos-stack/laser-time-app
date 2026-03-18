@@ -761,28 +761,66 @@ function renderMasterBookings() {
 function renderMasterServicesList() {
   const services = state.masterServices;
 
-  const listHTML = services.length
-    ? services.map(s => {
-        const cat = CATEGORIES.find(c => c.id === s.category_id);
-        const photoThumb = s.photos && s.photos.length > 0
-          ? `<img src="${s.photos[0]}" class="admin-service-thumb">`
-          : `<div class="admin-service-thumb-placeholder">${cat ? cat.icon : '✨'}</div>`;
+  if (!services.length) {
+    return `
+      <button class="admin-add-btn" id="addServiceBtn">+ Добавить услугу</button>
+      <div class="history-empty">Нет услуг</div>
+    `;
+  }
 
-        return `
-        <div class="admin-service-card" data-service-id="${s.id}">
-          ${photoThumb}
-          <div class="admin-service-info">
-            <div class="admin-service-name">${s.name}</div>
-            <div class="admin-service-meta">${s.duration} мин · ${s.price} ₽${s.sale_price ? ' / ' + s.sale_price + ' ₽' : ''}</div>
-          </div>
-          <div class="admin-service-actions">
-            <button class="admin-icon-btn edit" data-service-id="${s.id}" title="Редактировать">✏️</button>
-            <button class="admin-icon-btn delete" data-service-id="${s.id}" title="Удалить">🗑️</button>
-          </div>
+  // Группируем услуги по категориям
+  const grouped = {};
+  const noCategory = [];
+
+  services.forEach(s => {
+    if (s.category_id) {
+      if (!grouped[s.category_id]) grouped[s.category_id] = [];
+      grouped[s.category_id].push(s);
+    } else {
+      noCategory.push(s);
+    }
+  });
+
+  function renderServiceCard(s) {
+    const cat = CATEGORIES.find(c => c.id === s.category_id);
+    const photoThumb = s.photos && s.photos.length > 0
+      ? `<img src="${s.photos[0]}" class="admin-service-thumb">`
+      : `<div class="admin-service-thumb-placeholder">${cat ? cat.icon : '✨'}</div>`;
+
+    return `
+      <div class="admin-service-card" data-service-id="${s.id}">
+        ${photoThumb}
+        <div class="admin-service-info">
+          <div class="admin-service-name">${s.name}</div>
+          <div class="admin-service-meta">${s.duration} мин · ${s.price} ₽${s.sale_price ? ' / ' + s.sale_price + ' ₽' : ''}</div>
         </div>
-      `;
-      }).join('')
-    : '<div class="history-empty">Нет услуг</div>';
+        <div class="admin-service-actions">
+          <button class="admin-icon-btn edit" data-service-id="${s.id}" title="Редактировать">✏️</button>
+          <button class="admin-icon-btn delete" data-service-id="${s.id}" title="Удалить">🗑️</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Выводим по категориям в порядке CATEGORIES
+  let listHTML = '';
+  CATEGORIES.forEach(cat => {
+    const catServices = grouped[cat.id];
+    if (catServices && catServices.length > 0) {
+      listHTML += `<div class="admin-category-group">
+        <div class="admin-category-title">${cat.icon} ${cat.name}</div>
+        ${catServices.map(renderServiceCard).join('')}
+      </div>`;
+    }
+  });
+
+  // Услуги без категории
+  if (noCategory.length > 0) {
+    listHTML += `<div class="admin-category-group">
+      <div class="admin-category-title">Без категории</div>
+      ${noCategory.map(renderServiceCard).join('')}
+    </div>`;
+  }
 
   return `
     <button class="admin-add-btn" id="addServiceBtn">+ Добавить услугу</button>

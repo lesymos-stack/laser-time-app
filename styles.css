@@ -1904,6 +1904,17 @@ img {
   font-family: inherit;
 }
 
+.admin-category-group {
+  margin-bottom: 8px;
+}
+
+.admin-category-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #333);
+  padding: 12px 4px 6px;
+}
+
 .admin-service-card {
   display: flex;
   align-items: center;
