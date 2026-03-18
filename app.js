@@ -382,30 +382,6 @@ function renderHome() {
       <span class="home-booking-btn-icon">💌</span> Поделиться с другом
     </button>
 
-    <div class="reviews-section">
-      <div class="reviews-title">Отзывы клиентов</div>
-      <div class="review-card">
-        <div class="review-header">
-          <span class="review-name">Анна</span>
-          <span class="review-stars">★★★★★</span>
-        </div>
-        <div class="review-text">После 4 сеансов лазерной эпиляции кожа идеально гладкая! Совсем не больно, мастер всё объяснила. Очень довольна результатом!</div>
-      </div>
-      <div class="review-card">
-        <div class="review-header">
-          <span class="review-name">Мария</span>
-          <span class="review-stars">★★★★★</span>
-        </div>
-        <div class="review-text">Прошла комплекс по коррекции фигуры — минус 2 размера за курс! Процедуры комфортные, эффект заметен уже после третьего сеанса.</div>
-      </div>
-      <div class="review-card">
-        <div class="review-header">
-          <span class="review-name">Екатерина</span>
-          <span class="review-stars">★★★★★</span>
-        </div>
-        <div class="review-text">Делала лазерную эпиляцию зоны бикини — быстро, аккуратно и без раздражения. Забыла про бритву! Всем подругам уже посоветовала.</div>
-      </div>
-    </div>
   `;
 }
 
