@@ -186,7 +186,7 @@ async function loadDayOverrides(masterId, fromDate, toDate) {
 
 async function loadBookedSlots(masterId, fromDate, toDate) {
   return API.fetch('bookings',
-    `master_id=eq.${masterId}&date=gte.${fromDate}&date=lte.${toDate}&status=in.(confirmed,pending)&select=date,time,duration`
+    `master_id=eq.${masterId}&date=gte.${fromDate}&date=lte.${toDate}&status=in.(confirmed,pending,completed)&select=date,time,duration`
   ) || [];
 }
 
