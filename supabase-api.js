@@ -50,11 +50,14 @@ const API = {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.error('API POST error:', response.status, err);
+      const errText = await response.text().catch(() => '');
+      console.error(`❌ API POST ${table} error: ${response.status} ${response.statusText}`, errText);
+      // Показываем ошибку на экране для отладки
+      window.__lastApiError = `POST ${table}: ${response.status} — ${errText}`;
       return null;
     }
 
+    window.__lastApiError = null;
     return response.json();
   },
 
@@ -212,7 +215,10 @@ async function loadClientBookings(masterId, tgUserId) {
 // === Создание записи ===
 
 async function createBooking(bookingData) {
-  return API.post('bookings', bookingData);
+  console.log('📤 createBooking отправляем:', JSON.stringify(bookingData));
+  const result = await API.post('bookings', bookingData);
+  console.log('📥 createBooking ответ:', result);
+  return result;
 }
 
 // === Создание/обновление клиента ===
