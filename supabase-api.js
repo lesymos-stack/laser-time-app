@@ -216,6 +216,10 @@ async function loadClientBookings(masterId, tgUserId) {
 
 async function createBooking(bookingData) {
   console.log('📤 createBooking отправляем:', JSON.stringify(bookingData));
+  // Удаляем отменённые записи на этот же слот (иначе unique constraint не даст создать)
+  await API.delete('bookings',
+    `master_id=eq.${bookingData.master_id}&date=eq.${bookingData.date}&time=eq.${bookingData.time}&status=in.(cancelled,no_show)`
+  );
   const result = await API.post('bookings', bookingData);
   console.log('📥 createBooking ответ:', result);
   return result;
