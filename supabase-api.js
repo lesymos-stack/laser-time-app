@@ -247,6 +247,12 @@ async function upsertClient(masterId, tgUser, phone) {
 }
 
 
+// === Обновление профиля мастера ===
+
+async function updateMaster(masterId, data) {
+  return API.patch('masters', `id=eq.${masterId}`, data);
+}
+
 // === Вычисление свободных слотов ===
 // Берём шаблон расписания + исключения + занятые слоты → возвращаем свободные
 

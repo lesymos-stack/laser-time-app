@@ -346,7 +346,7 @@ function renderHome() {
       <a href="tel:${MASTER.phone}" class="contact-btn contact-btn-call">
         <span class="contact-btn-icon">📞</span> Позвонить
       </a>
-      <a href="https://whatsapp.com/dl/" class="contact-btn contact-btn-write" target="_blank">
+      <a href="${MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, '')}" class="contact-btn contact-btn-write" target="_blank">
         <span class="contact-btn-icon">💬</span> Написать
       </a>
     </div>
@@ -527,6 +527,7 @@ function renderMasterPanel() {
       <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
       <button class="admin-tab ${tab === 'abonements' ? 'active' : ''}" data-tab="abonements">Абонементы</button>
       <button class="admin-tab ${tab === 'broadcast' ? 'active' : ''}" data-tab="broadcast">Рассылка</button>
+      <button class="admin-tab ${tab === 'profile' ? 'active' : ''}" data-tab="profile">Профиль</button>
     </div>
   `;
 
@@ -538,6 +539,7 @@ function renderMasterPanel() {
     case 'abonements': contentHTML = renderMasterAbonements(); break;
     case 'clients':  contentHTML = renderMasterClientsList(); break;
     case 'broadcast': contentHTML = renderBroadcastForm(); break;
+    case 'profile': contentHTML = renderMasterProfile(); break;
     case 'serviceForm': contentHTML = renderServiceForm(); break;
     case 'categoryForm': contentHTML = renderCategoryForm(); break;
     case 'abonementForm': contentHTML = renderAbonementForm(); break;
@@ -806,6 +808,37 @@ function renderBroadcastForm() {
     <textarea id="broadcastText" class="broadcast-textarea" placeholder="Введите текст сообщения..." rows="5"></textarea>
     <button class="booking-confirm-btn" id="sendBroadcastBtn">Отправить рассылку</button>
     <div id="broadcastResult" class="broadcast-result"></div>
+  `;
+}
+
+// --- Вкладка «Профиль» ---
+function renderMasterProfile() {
+  const m = MASTER || {};
+  return `
+    <div class="master-section-title">Профиль мастера</div>
+    <div class="admin-form">
+      <label class="admin-label">Название салона / имя мастера</label>
+      <input type="text" id="profileName" class="admin-input" value="${(m.name || '').replace(/"/g, '&quot;')}" placeholder="Например: Студия Анны" />
+
+      <label class="admin-label">Описание</label>
+      <textarea id="profileDescription" class="admin-input admin-textarea" rows="3" placeholder="Краткое описание вашей деятельности">${m.description || ''}</textarea>
+
+      <label class="admin-label">Телефон</label>
+      <input type="tel" id="profilePhone" class="admin-input" value="${(m.phone || '').replace(/"/g, '&quot;')}" placeholder="+7 (999) 123-45-67" />
+
+      <label class="admin-label">WhatsApp</label>
+      <input type="text" id="profileWhatsapp" class="admin-input" value="${(m.whatsapp_url || '').replace(/"/g, '&quot;')}" placeholder="https://wa.me/79991234567" />
+      <div class="admin-form-hint" style="font-size:12px;color:var(--tg-theme-hint-color,#999);margin:4px 0 8px;">Формат: https://wa.me/79991234567 (без +, без пробелов)</div>
+
+      <label class="admin-label">Приветственное сообщение (в боте)</label>
+      <textarea id="profileWelcome" class="admin-input admin-textarea" rows="2" placeholder="Текст при нажатии /start в боте">${m.welcome_text || ''}</textarea>
+
+      <label class="admin-label">Код доступа к панели мастера</label>
+      <input type="text" id="profileCode" class="admin-input" value="${(m.master_code || '').replace(/"/g, '&quot;')}" placeholder="4 цифры" maxlength="4" />
+
+      <button class="booking-confirm-btn" id="saveProfileBtn" style="margin-top:16px;">Сохранить профиль</button>
+      <div id="profileResult" class="broadcast-result"></div>
+    </div>
   `;
 }
 
@@ -1443,6 +1476,7 @@ function refreshAdminContent(container) {
     case 'clients':  content.innerHTML = renderMasterClientsList(); break;
     case 'abonements': content.innerHTML = renderMasterAbonements(); break;
     case 'broadcast': content.innerHTML = renderBroadcastForm(); break;
+    case 'profile': content.innerHTML = renderMasterProfile(); break;
   }
   // Перепривязываем обработчики
   bindEvents('masterPanel', container);
@@ -1787,6 +1821,61 @@ function bindEvents(screenName, container) {
 
           sendBroadcastBtn.disabled = false;
           sendBroadcastBtn.textContent = 'Отправить рассылку';
+        });
+      }
+
+      // --- Профиль: сохранить ---
+      const saveProfileBtn = container.querySelector('#saveProfileBtn');
+      if (saveProfileBtn) {
+        saveProfileBtn.addEventListener('click', async () => {
+          const name = container.querySelector('#profileName')?.value.trim();
+          const description = container.querySelector('#profileDescription')?.value.trim();
+          const phone = container.querySelector('#profilePhone')?.value.trim();
+          const whatsapp_url = container.querySelector('#profileWhatsapp')?.value.trim();
+          const welcome_text = container.querySelector('#profileWelcome')?.value.trim();
+          const master_code = container.querySelector('#profileCode')?.value.trim();
+
+          if (!name) {
+            const res = container.querySelector('#profileResult');
+            if (res) { res.textContent = '❌ Название не может быть пустым'; res.style.color = '#c00'; }
+            return;
+          }
+
+          saveProfileBtn.disabled = true;
+          saveProfileBtn.textContent = 'Сохранение...';
+
+          try {
+            const data = { name, description, phone, whatsapp_url, welcome_text };
+            if (master_code && master_code.length === 4) {
+              data.master_code = master_code;
+            }
+
+            const result = await updateMaster(CURRENT_MASTER_ID, data);
+            const res = container.querySelector('#profileResult');
+
+            if (result) {
+              // Обновляем глобальный объект MASTER
+              MASTER.name = name;
+              MASTER.description = description;
+              MASTER.phone = phone;
+              MASTER.whatsapp_url = whatsapp_url;
+              MASTER.welcome_text = welcome_text;
+              if (master_code && master_code.length === 4) {
+                MASTER.master_code = master_code;
+                MASTER_CODE = master_code;
+              }
+              if (res) { res.textContent = '✅ Профиль сохранён'; res.style.color = '#2a2'; }
+              haptic('notification', 'success');
+            } else {
+              if (res) { res.textContent = '❌ Ошибка сохранения'; res.style.color = '#c00'; }
+            }
+          } catch (err) {
+            const res = container.querySelector('#profileResult');
+            if (res) { res.textContent = '❌ ' + err.message; res.style.color = '#c00'; }
+          }
+
+          saveProfileBtn.disabled = false;
+          saveProfileBtn.textContent = 'Сохранить профиль';
         });
       }
 
