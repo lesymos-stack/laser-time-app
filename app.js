@@ -1316,7 +1316,7 @@ function renderSuccess() {
       <div class="success-hint">Напоминание придёт за 24 часа в этот чат</div>
       <div class="success-hint">Нужно перенести? Напишите в чат бота.</div>
 
-      ${state.bookingError ? `<div style="margin-top:16px;padding:12px;background:#fee;border:1px solid #f88;border-radius:8px;font-size:12px;color:#c00;word-break:break-all;">⚠️ ОТЛАДКА: ${state.bookingError}</div>` : ''}
+      ${''/* отладочный блок убран */}
 
       ${!tg ? '<button class="booking-confirm-btn" id="successHomeBtn">На главную</button>' : ''}
     </div>
@@ -1327,7 +1327,12 @@ function renderSuccess() {
 // ОТПРАВКА ЗАПИСИ
 // ============================================================
 
+let _bookingInProgress = false;
 async function submitBooking() {
+  // Защита от двойного нажатия
+  if (_bookingInProgress) return;
+  _bookingInProgress = true;
+
   const service = state.selectedService;
   const tgUser = tg?.initDataUnsafe?.user || {};
 
@@ -1349,11 +1354,6 @@ async function submitBooking() {
 
   // Помечаем слот как занятый (сразу, чтобы UI обновился)
   BOOKED_SLOTS.push(`${state.selectedDate}_${state.selectedTime}`);
-
-  // Сохраняем в Supabase (если подключены)
-  state.bookingError = null;
-  console.log('🔑 CURRENT_MASTER_ID:', CURRENT_MASTER_ID);
-  console.log('👤 tgUser:', JSON.stringify(tgUser));
   if (CURRENT_MASTER_ID) {
     try {
       const result = await createBooking({
@@ -1405,6 +1405,7 @@ async function submitBooking() {
 
   // Переходим на экран успеха
   navigateTo('success');
+  _bookingInProgress = false;
 }
 
 // ============================================================
