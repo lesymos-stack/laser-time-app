@@ -526,6 +526,7 @@ function renderMasterPanel() {
       <button class="admin-tab ${tab === 'categories' ? 'active' : ''}" data-tab="categories">Категории</button>
       <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
       <button class="admin-tab ${tab === 'abonements' ? 'active' : ''}" data-tab="abonements">Абонементы</button>
+      <button class="admin-tab ${tab === 'schedule' ? 'active' : ''}" data-tab="schedule">График</button>
       <button class="admin-tab ${tab === 'broadcast' ? 'active' : ''}" data-tab="broadcast">Рассылка</button>
       <button class="admin-tab ${tab === 'profile' ? 'active' : ''}" data-tab="profile">Профиль</button>
     </div>
@@ -538,11 +539,13 @@ function renderMasterPanel() {
     case 'categories': contentHTML = renderMasterCategoriesList(); break;
     case 'abonements': contentHTML = renderMasterAbonements(); break;
     case 'clients':  contentHTML = renderMasterClientsList(); break;
+    case 'schedule': contentHTML = renderMasterSchedule(); break;
     case 'broadcast': contentHTML = renderBroadcastForm(); break;
     case 'profile': contentHTML = renderMasterProfile(); break;
     case 'serviceForm': contentHTML = renderServiceForm(); break;
     case 'categoryForm': contentHTML = renderCategoryForm(); break;
     case 'abonementForm': contentHTML = renderAbonementForm(); break;
+    case 'scheduleForm': contentHTML = renderScheduleForm(); break;
   }
 
   return `
@@ -809,6 +812,62 @@ function renderBroadcastForm() {
     <button class="booking-confirm-btn" id="sendBroadcastBtn">Отправить рассылку</button>
     <div id="broadcastResult" class="broadcast-result"></div>
   `;
+}
+
+// --- Вкладка «График работы» ---
+const DAY_NAMES = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+const DAY_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+function renderMasterSchedule() {
+  const schedule = state.masterSchedule || [];
+
+  // Создаём массив 7 дней (0=Вс, 1=Пн ... 6=Сб), отображаем с Пн
+  const dayOrder = [1, 2, 3, 4, 5, 6, 0]; // Пн-Вс
+
+  let html = '<div class="master-section-title">График работы</div>';
+  html += '<div class="schedule-info">Настройте рабочие дни и время приёма клиентов</div>';
+
+  html += '<div class="schedule-days-list">';
+  dayOrder.forEach(dayNum => {
+    const row = schedule.find(s => s.day_of_week === dayNum);
+    const isActive = row && row.is_active;
+    const startTime = row ? row.start_time?.substring(0, 5) : '';
+    const endTime = row ? row.end_time?.substring(0, 5) : '';
+    const interval = row ? row.slot_interval : 30;
+
+    html += `
+      <div class="schedule-day-card ${isActive ? 'active' : 'inactive'}">
+        <div class="schedule-day-header">
+          <label class="schedule-day-toggle">
+            <input type="checkbox" class="schedule-day-check" data-day="${dayNum}" ${isActive ? 'checked' : ''}>
+            <span class="schedule-day-name">${DAY_NAMES[dayNum]}</span>
+          </label>
+          ${isActive ? `<span class="schedule-day-time">${startTime} — ${endTime}</span>` : '<span class="schedule-day-off">Выходной</span>'}
+        </div>
+        ${isActive ? `
+          <div class="schedule-day-details">
+            <div class="schedule-time-row">
+              <label>С: <input type="time" class="schedule-start" data-day="${dayNum}" value="${startTime}"></label>
+              <label>До: <input type="time" class="schedule-end" data-day="${dayNum}" value="${endTime}"></label>
+              <label>Шаг: <select class="schedule-interval" data-day="${dayNum}">
+                <option value="15" ${interval === 15 ? 'selected' : ''}>15 мин</option>
+                <option value="30" ${interval === 30 ? 'selected' : ''}>30 мин</option>
+                <option value="60" ${interval === 60 ? 'selected' : ''}>1 час</option>
+                <option value="90" ${interval === 90 ? 'selected' : ''}>1.5 часа</option>
+                <option value="120" ${interval === 120 ? 'selected' : ''}>2 часа</option>
+              </select></label>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  });
+  html += '</div>';
+
+  html += '<button class="booking-confirm-btn" id="saveScheduleBtn">Сохранить график</button>';
+  html += '<div id="scheduleResult" class="broadcast-result"></div>';
+
+  return html;
 }
 
 // --- Вкладка «Профиль» ---
@@ -1429,6 +1488,8 @@ async function loadMasterTabData(tab) {
       state.masterClients = await loadMasterClients(CURRENT_MASTER_ID) || [];
     } else if (tab === 'abonements') {
       state.masterAbonements = await loadAbonements(CURRENT_MASTER_ID) || [];
+    } else if (tab === 'schedule') {
+      state.masterSchedule = await loadAllSchedule(CURRENT_MASTER_ID) || [];
     }
   } catch (err) {
     console.error('Ошибка загрузки данных панели:', err);
@@ -1479,6 +1540,7 @@ function refreshAdminContent(container) {
     case 'categories': content.innerHTML = renderMasterCategoriesList(); break;
     case 'clients':  content.innerHTML = renderMasterClientsList(); break;
     case 'abonements': content.innerHTML = renderMasterAbonements(); break;
+    case 'schedule': content.innerHTML = renderMasterSchedule(); break;
     case 'broadcast': content.innerHTML = renderBroadcastForm(); break;
     case 'profile': content.innerHTML = renderMasterProfile(); break;
   }
@@ -1880,6 +1942,90 @@ function bindEvents(screenName, container) {
 
           saveProfileBtn.disabled = false;
           saveProfileBtn.textContent = 'Сохранить профиль';
+        });
+      }
+
+      // --- График: сохранить ---
+      const saveScheduleBtn = container.querySelector('#saveScheduleBtn');
+      if (saveScheduleBtn) {
+        // Галочки дней — переключение активности
+        container.querySelectorAll('.schedule-day-check').forEach(chk => {
+          chk.addEventListener('change', async () => {
+            const dayNum = parseInt(chk.dataset.day);
+            const existing = (state.masterSchedule || []).find(s => s.day_of_week === dayNum);
+            if (existing) {
+              await updateScheduleDay(existing.id, { is_active: chk.checked });
+            } else if (chk.checked) {
+              await saveScheduleDay({
+                master_id: CURRENT_MASTER_ID,
+                day_of_week: dayNum,
+                start_time: '09:00',
+                end_time: '20:00',
+                slot_interval: 30,
+                is_active: true
+              });
+            }
+            state.masterSchedule = await loadAllSchedule(CURRENT_MASTER_ID) || [];
+            refreshAdminContent(container);
+          });
+        });
+
+        saveScheduleBtn.addEventListener('click', async () => {
+          saveScheduleBtn.disabled = true;
+          saveScheduleBtn.textContent = 'Сохранение...';
+          const resultEl = container.querySelector('#scheduleResult');
+
+          try {
+            const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+            for (const dayNum of dayOrder) {
+              const chk = container.querySelector(`.schedule-day-check[data-day="${dayNum}"]`);
+              if (!chk) continue;
+
+              const isActive = chk.checked;
+              const startInput = container.querySelector(`.schedule-start[data-day="${dayNum}"]`);
+              const endInput = container.querySelector(`.schedule-end[data-day="${dayNum}"]`);
+              const intervalSelect = container.querySelector(`.schedule-interval[data-day="${dayNum}"]`);
+
+              const startTime = startInput ? startInput.value : '09:00';
+              const endTime = endInput ? endInput.value : '20:00';
+              const interval = intervalSelect ? parseInt(intervalSelect.value) : 30;
+
+              const existing = (state.masterSchedule || []).find(s => s.day_of_week === dayNum);
+
+              if (existing) {
+                await updateScheduleDay(existing.id, {
+                  start_time: startTime,
+                  end_time: endTime,
+                  slot_interval: interval,
+                  is_active: isActive
+                });
+              } else if (isActive) {
+                await saveScheduleDay({
+                  master_id: CURRENT_MASTER_ID,
+                  day_of_week: dayNum,
+                  start_time: startTime,
+                  end_time: endTime,
+                  slot_interval: interval,
+                  is_active: true
+                });
+              }
+            }
+
+            state.masterSchedule = await loadAllSchedule(CURRENT_MASTER_ID) || [];
+            if (resultEl) {
+              resultEl.textContent = 'График сохранён!';
+              resultEl.style.color = '#4CAF50';
+            }
+            haptic('notification', 'success');
+          } catch (err) {
+            if (resultEl) {
+              resultEl.textContent = 'Ошибка: ' + err.message;
+              resultEl.style.color = '#f44336';
+            }
+          }
+
+          saveScheduleBtn.disabled = false;
+          saveScheduleBtn.textContent = 'Сохранить график';
         });
       }
 

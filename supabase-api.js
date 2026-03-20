@@ -178,6 +178,36 @@ async function loadSchedule(masterId) {
   ) || [];
 }
 
+async function loadAllSchedule(masterId) {
+  return API.fetch('schedule',
+    `master_id=eq.${masterId}&order=day_of_week.asc`
+  ) || [];
+}
+
+async function saveScheduleDay(data) {
+  return API.post('schedule', data);
+}
+
+async function updateScheduleDay(id, data) {
+  return API.patch('schedule', `id=eq.${id}`, data);
+}
+
+async function deleteScheduleDay(id) {
+  return API.delete('schedule', `id=eq.${id}`);
+}
+
+async function saveDayOverride(data) {
+  return API.post('day_overrides', data);
+}
+
+async function updateDayOverride(id, data) {
+  return API.patch('day_overrides', `id=eq.${id}`, data);
+}
+
+async function deleteDayOverride(id) {
+  return API.delete('day_overrides', `id=eq.${id}`);
+}
+
 async function loadDayOverrides(masterId, fromDate, toDate) {
   return API.fetch('day_overrides',
     `master_id=eq.${masterId}&date=gte.${fromDate}&date=lte.${toDate}`

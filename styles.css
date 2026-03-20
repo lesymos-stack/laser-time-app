@@ -1921,6 +1921,98 @@ img {
   padding: 12px 4px 6px;
 }
 
+/* --- График работы --- */
+.schedule-info {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #999);
+  padding: 0 4px 12px;
+}
+
+.schedule-days-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.schedule-day-card {
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+}
+
+.schedule-day-card.inactive {
+  opacity: 0.6;
+}
+
+.schedule-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.schedule-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.schedule-day-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--tg-theme-button-color, #3390ec);
+}
+
+.schedule-day-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #333);
+}
+
+.schedule-day-time {
+  font-size: 13px;
+  color: var(--tg-theme-button-color, #3390ec);
+  font-weight: 500;
+}
+
+.schedule-day-off {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #999);
+}
+
+.schedule-day-details {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+}
+
+.schedule-time-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.schedule-time-row label {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #999);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.schedule-time-row input[type="time"],
+.schedule-time-row select {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--tg-theme-secondary-bg-color, #ddd);
+  background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+  color: var(--tg-theme-text-color, #333);
+  font-size: 14px;
+}
+
 .admin-service-card {
   display: flex;
   align-items: center;
