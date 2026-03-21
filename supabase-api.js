@@ -198,18 +198,36 @@ async function loadFaq(masterId) {
 }
 
 // Загрузить клиента по Telegram ID (для бонусов и истории)
-async function loadClient(masterId, tgUserId) {
-  const clients = await API.fetch('clients',
-    `master_id=eq.${masterId}&tg_user_id=eq.${tgUserId}`
-  );
-  return clients && clients[0] ? clients[0] : null;
+async function loadClient(masterId, tgUserId, phone) {
+  // Поиск по tg_user_id (Telegram) или по phone (веб)
+  if (tgUserId) {
+    const clients = await API.fetch('clients',
+      `master_id=eq.${masterId}&tg_user_id=eq.${tgUserId}`
+    );
+    if (clients && clients[0]) return clients[0];
+  }
+  if (phone) {
+    const clients = await API.fetch('clients',
+      `master_id=eq.${masterId}&phone=eq.${encodeURIComponent(phone)}`
+    );
+    if (clients && clients[0]) return clients[0];
+  }
+  return null;
 }
 
 // Загрузить записи клиента (для экрана «Мои записи»)
-async function loadClientBookings(masterId, tgUserId) {
-  return API.fetch('bookings',
-    `master_id=eq.${masterId}&client_tg_id=eq.${tgUserId}&order=date.desc,time.desc&select=*,services(name)`
-  ) || [];
+async function loadClientBookings(masterId, tgUserId, phone) {
+  if (tgUserId) {
+    return API.fetch('bookings',
+      `master_id=eq.${masterId}&client_tg_id=eq.${tgUserId}&order=date.desc,time.desc&select=*,services(name)`
+    ) || [];
+  }
+  if (phone) {
+    return API.fetch('bookings',
+      `master_id=eq.${masterId}&client_phone=eq.${encodeURIComponent(phone)}&order=date.desc,time.desc&select=*,services(name)`
+    ) || [];
+  }
+  return [];
 }
 
 
@@ -229,13 +247,15 @@ async function createBooking(bookingData) {
 // === Создание/обновление клиента ===
 
 async function upsertClient(masterId, tgUser, phone) {
-  // Проверяем, есть ли уже клиент
-  const existing = await loadClient(masterId, tgUser.id);
+  // Проверяем, есть ли уже клиент (по tg_user_id или phone)
+  const existing = await loadClient(masterId, tgUser.id || 0, phone);
 
   if (existing) {
-    // Обновляем телефон если он передан
-    if (phone) {
-      await API.patch('clients', `id=eq.${existing.id}`, { phone });
+    const updates = {};
+    if (phone && !existing.phone) updates.phone = phone;
+    if (tgUser.id && !existing.tg_user_id) updates.tg_user_id = tgUser.id;
+    if (Object.keys(updates).length > 0) {
+      await API.patch('clients', `id=eq.${existing.id}`, updates);
     }
     return existing;
   }
@@ -243,9 +263,10 @@ async function upsertClient(masterId, tgUser, phone) {
   // Создаём нового клиента
   const data = {
     master_id: masterId,
-    tg_user_id: tgUser.id,
+    tg_user_id: tgUser.id || 0,
     first_name: tgUser.first_name || '',
     username: tgUser.username || '',
+    auth_source: tgUser.id ? 'telegram' : 'web',
   };
   if (phone) data.phone = phone;
   return API.post('clients', data);
@@ -483,10 +504,18 @@ async function creditBonus(masterId, clientTgId, bookingId, amount) {
 }
 
 // Списать бонусы при записи
-async function debitBonus(masterId, clientTgId, amount) {
-  const clients = await API.fetch('clients',
-    `master_id=eq.${masterId}&tg_user_id=eq.${clientTgId}&select=id,bonus_balance`
-  );
+async function debitBonus(masterId, clientTgId, amount, phone) {
+  let clients;
+  if (clientTgId) {
+    clients = await API.fetch('clients',
+      `master_id=eq.${masterId}&tg_user_id=eq.${clientTgId}&select=id,bonus_balance`
+    );
+  }
+  if ((!clients || !clients[0]) && phone) {
+    clients = await API.fetch('clients',
+      `master_id=eq.${masterId}&phone=eq.${encodeURIComponent(phone)}&select=id,bonus_balance`
+    );
+  }
   if (!clients || !clients[0]) return false;
 
   const client = clients[0];
@@ -557,10 +586,18 @@ async function loadBonusHistory(clientId) {
 }
 
 // Загрузить бонусный баланс клиента
-async function loadClientBonus(masterId, tgUserId) {
-  const clients = await API.fetch('clients',
-    `master_id=eq.${masterId}&tg_user_id=eq.${tgUserId}&select=id,bonus_balance`
-  );
+async function loadClientBonus(masterId, tgUserId, phone) {
+  let clients;
+  if (tgUserId) {
+    clients = await API.fetch('clients',
+      `master_id=eq.${masterId}&tg_user_id=eq.${tgUserId}&select=id,bonus_balance`
+    );
+  }
+  if ((!clients || !clients[0]) && phone) {
+    clients = await API.fetch('clients',
+      `master_id=eq.${masterId}&phone=eq.${encodeURIComponent(phone)}&select=id,bonus_balance`
+    );
+  }
   if (!clients || !clients[0]) return { balance: 0, clientId: null };
 
   // Проверяем сгорание

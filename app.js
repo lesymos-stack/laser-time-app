@@ -22,6 +22,19 @@
 
 const tg = window.Telegram?.WebApp;
 
+// Текущий пользователь (Telegram или веб)
+function getCurrentUser() {
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    const u = tg.initDataUnsafe.user;
+    return { id: u.id, name: u.first_name || '', username: u.username || '', phone: '', source: 'telegram' };
+  }
+  const webUser = typeof getWebUser === 'function' ? getWebUser() : null;
+  if (webUser) {
+    return { id: webUser.id, name: webUser.name || '', username: '', phone: webUser.phone, source: 'web' };
+  }
+  return null;
+}
+
 // Код доступа мастера (перезапишется из Supabase)
 let MASTER_CODE = '5638';
 
@@ -89,23 +102,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       MASTER_CODE = data.master.master_code || '0000';
 
       // Загружаем бонусный баланс клиента
-      const tgUser = tg?.initDataUnsafe?.user;
-      if (tgUser?.id && CURRENT_MASTER_ID) {
+      const currentUser = getCurrentUser();
+      if (currentUser && CURRENT_MASTER_ID) {
         try {
-          const bonusData = await loadClientBonus(CURRENT_MASTER_ID, tgUser.id);
+          const tgId = currentUser.source === 'telegram' ? currentUser.id : 0;
+          const bonusData = await loadClientBonus(CURRENT_MASTER_ID, tgId, currentUser.phone);
           CLIENT_BONUS = bonusData.balance;
         } catch (e) { CLIENT_BONUS = 0; }
       }
 
-      console.log('✅ Данные загружены из Supabase');
+      console.log('✅ Данные загружены');
     } else {
-      console.warn('⚠️ Supabase недоступен, используем локальные данные');
+      console.warn('⚠️ API недоступен, используем локальные данные');
     }
   } catch (err) {
-    console.warn('⚠️ Ошибка загрузки из Supabase, используем локальные данные:', err);
+    console.warn('⚠️ Ошибка загрузки, используем локальные данные:', err);
   }
 
   // Запускаем приложение
+  // Веб-пользователь без авторизации — показываем логин
+  if (!tg && !getCurrentUser() && typeof renderLoginScreen === 'function') {
+    document.getElementById('app').innerHTML = renderLoginScreen();
+    initLoginHandlers((user) => {
+      // Успешный вход — перезагружаем
+      location.reload();
+    });
+    return;
+  }
+
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
   } else {
@@ -1303,8 +1327,13 @@ function renderBooking() {
       ${timeSlotsHTML}
     </div>
 
+    ${getCurrentUser()?.source === 'web' ? `
+    <div class="booking-section-title">Ваш телефон</div>
+    <div class="booking-phone-display">${getCurrentUser().phone}</div>
+    ` : `
     <div class="booking-section-title">Ваш телефон</div>
     <input type="tel" id="bookingPhone" class="booking-phone-input" placeholder="+7 (___) ___-__-__" value="${state.clientPhone || ''}" />
+    `}
 
     ${CLIENT_BONUS > 0 ? `
       <div class="bonus-block">
@@ -1450,11 +1479,11 @@ async function submitBooking() {
 
   try {
   const service = state.selectedService;
-  const tgUser = tg?.initDataUnsafe?.user || {};
+  const user = getCurrentUser();
 
-  // Считываем телефон из инпута
+  // Считываем телефон из инпута (для Telegram-юзеров — ручной ввод)
   const phoneInput = document.getElementById('bookingPhone');
-  const phone = phoneInput ? phoneInput.value.trim() : '';
+  const phone = user?.source === 'web' ? user.phone : (phoneInput ? phoneInput.value.trim() : '');
   state.clientPhone = phone;
 
   // Считываем бонусы
@@ -1472,27 +1501,33 @@ async function submitBooking() {
   BOOKED_SLOTS.push(`${state.selectedDate}_${state.selectedTime}`);
   if (CURRENT_MASTER_ID) {
     try {
-      const result = await createBooking({
+      const bookingData = {
         master_id: CURRENT_MASTER_ID,
         service_id: service.id,
-        client_tg_id: tgUser.id || 0,
-        client_name: tgUser.first_name || '',
-        client_username: tgUser.username || '',
+        client_tg_id: user?.source === 'telegram' ? user.id : 0,
+        client_name: user?.name || '',
+        client_username: user?.username || '',
+        client_phone: phone || '',
         date: state.selectedDate,
         time: state.selectedTime,
         price: finalPrice,
         duration: service.duration,
-      });
+      };
+      const result = await createBooking(bookingData);
 
       if (result) {
-        console.log('✅ Запись сохранена в Supabase:', result);
-        // Создаём/обновляем клиента (с телефоном)
-        if (tgUser.id) {
-          upsertClient(CURRENT_MASTER_ID, tgUser, phone);
+        console.log('✅ Запись сохранена:', result);
+        // Создаём/обновляем клиента
+        if (user) {
+          const clientData = user.source === 'telegram'
+            ? { id: user.id, first_name: user.name, username: user.username }
+            : { id: user.id, first_name: user.name, username: '' };
+          upsertClient(CURRENT_MASTER_ID, clientData, phone);
         }
         // Списываем бонусы
-        if (bonusToUse > 0 && tgUser.id) {
-          await debitBonus(CURRENT_MASTER_ID, tgUser.id, bonusToUse);
+        const tgIdForBonus = user?.source === 'telegram' ? user.id : 0;
+        if (bonusToUse > 0 && user) {
+          await debitBonus(CURRENT_MASTER_ID, tgIdForBonus, bonusToUse, user.phone);
           CLIENT_BONUS = Math.max(0, CLIENT_BONUS - bonusToUse);
           console.log(`💎 Списано бонусов: ${bonusToUse} ₽`);
         }
