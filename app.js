@@ -286,6 +286,7 @@ function mainButtonHandler() {
       break;
     case 'success':
       if (tg) tg.close();
+      else navigateTo('home');
       break;
   }
 }

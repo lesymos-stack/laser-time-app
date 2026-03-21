@@ -6,6 +6,34 @@
  */
 
 /* ==============================
+   0. ТЕМА ПО УМОЛЧАНИЮ (для браузера без Telegram)
+   ============================== */
+
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #007AFF;
+  --tg-theme-button-color: #007AFF;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f2f2f7;
+  --tg-theme-destructive-text-color: #ff3b30;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-theme-bg-color: #1c1c1e;
+    --tg-theme-text-color: #ffffff;
+    --tg-theme-hint-color: #8e8e93;
+    --tg-theme-link-color: #0a84ff;
+    --tg-theme-button-color: #0a84ff;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #2c2c2e;
+    --tg-theme-destructive-text-color: #ff453a;
+  }
+}
+
+/* ==============================
    1. СБРОС И БАЗОВЫЕ СТИЛИ
    ============================== */
 
