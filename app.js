@@ -279,6 +279,8 @@ function mainButtonHandler() {
       break;
     case 'booking':
       if (state.selectedDate && state.selectedTime) {
+        const consent = document.querySelector('#consentCheckbox');
+        if (!consent || !consent.checked) return;
         submitBooking();
       }
       break;
@@ -1207,6 +1209,45 @@ function isSlotAvailableForDuration(dateKey, startTime, duration) {
   return !busy.some(b => slotStart < b.end && slotEnd > b.start);
 }
 
+function showConsentPopup() {
+  const masterName = MASTER?.name || 'Индивидуальный предприниматель';
+  const overlay = document.createElement('div');
+  overlay.className = 'consent-overlay';
+  overlay.innerHTML = `
+    <div class="consent-popup">
+      <div class="consent-popup-title">Политика обработки персональных данных</div>
+      <div class="consent-popup-body">
+        <p>Нажимая кнопку «Записаться», вы даёте согласие <b>${masterName}</b> на обработку ваших персональных данных в соответствии с Федеральным законом №152-ФЗ «О персональных данных».</p>
+        <p><b>Какие данные обрабатываются:</b></p>
+        <ul>
+          <li>Имя и фамилия (из профиля Telegram)</li>
+          <li>Номер телефона (если указан)</li>
+          <li>Имя пользователя Telegram</li>
+          <li>Данные о записях (дата, время, услуга)</li>
+        </ul>
+        <p><b>Цели обработки:</b></p>
+        <ul>
+          <li>Запись на услуги и управление расписанием</li>
+          <li>Связь с вами для подтверждения или изменения записи</li>
+          <li>Отправка напоминаний о предстоящих записях</li>
+          <li>Начисление и списание бонусов</li>
+        </ul>
+        <p><b>Хранение данных:</b> ваши данные хранятся на серверах, расположенных на территории Российской Федерации.</p>
+        <p><b>Срок хранения:</b> данные хранятся до момента отзыва согласия. Для отзыва согласия напишите мастеру в чат бота.</p>
+        <p>Согласие может быть отозвано в любой момент путём направления соответствующего запроса.</p>
+      </div>
+      <button class="consent-popup-btn" id="consentPopupClose">Понятно</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#consentPopupClose').addEventListener('click', () => {
+    overlay.remove();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
 function renderBooking() {
   const service = state.selectedService;
   if (!service) return '';
@@ -1278,6 +1319,13 @@ function renderBooking() {
       </div>
     ` : ''}
 
+    <div class="consent-block">
+      <label class="consent-label">
+        <input type="checkbox" id="consentCheckbox" />
+        <span>Я соглашаюсь на <a href="#" id="consentLink">обработку персональных данных</a></span>
+      </label>
+    </div>
+
     <button class="booking-confirm-btn disabled" id="bookingConfirmBtn" disabled>Выберите дату и время</button>
   `;
 }
@@ -1317,12 +1365,19 @@ function updateTimeSlots() {
       container.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
       slot.classList.add('selected');
 
-      // Активируем кнопку «Записаться» (ищем в DOM на момент клика)
+      // Активируем кнопку «Записаться» только если есть согласие
       const confirmBtn = document.querySelector('#bookingConfirmBtn');
+      const consent = document.querySelector('#consentCheckbox');
       if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.classList.remove('disabled');
-        confirmBtn.textContent = 'Записаться';
+        if (consent && consent.checked) {
+          confirmBtn.disabled = false;
+          confirmBtn.classList.remove('disabled');
+          confirmBtn.textContent = 'Записаться';
+        } else {
+          confirmBtn.disabled = true;
+          confirmBtn.classList.add('disabled');
+          confirmBtn.textContent = 'Дайте согласие';
+        }
       }
 
       // Активируем MainButton
@@ -2354,16 +2409,48 @@ function bindEvents(screenName, container) {
           container.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
           slot.classList.add('selected');
 
-          // Активируем кнопку
+          // Активируем кнопку только если есть согласие
+          const consent = container.querySelector('#consentCheckbox');
           if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.classList.remove('disabled');
-            confirmBtn.textContent = 'Записаться';
+            if (consent && consent.checked) {
+              confirmBtn.disabled = false;
+              confirmBtn.classList.remove('disabled');
+              confirmBtn.textContent = 'Записаться';
+            } else {
+              confirmBtn.disabled = true;
+              confirmBtn.classList.add('disabled');
+              confirmBtn.textContent = 'Дайте согласие';
+            }
           }
 
           updateTelegramButtons('booking');
         });
       });
+
+      // Чекбокс согласия на обработку ПД
+      const consentCb = container.querySelector('#consentCheckbox');
+      const consentLink = container.querySelector('#consentLink');
+      if (consentCb) {
+        consentCb.addEventListener('change', () => {
+          if (confirmBtn && state.selectedDate && state.selectedTime) {
+            if (consentCb.checked) {
+              confirmBtn.disabled = false;
+              confirmBtn.classList.remove('disabled');
+              confirmBtn.textContent = 'Записаться';
+            } else {
+              confirmBtn.disabled = true;
+              confirmBtn.classList.add('disabled');
+              confirmBtn.textContent = 'Дайте согласие';
+            }
+          }
+        });
+      }
+      if (consentLink) {
+        consentLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          showConsentPopup();
+        });
+      }
 
       // Чекбокс бонусов
       const useBonusCb = container.querySelector('#useBonusCheckbox');
@@ -2377,7 +2464,8 @@ function bindEvents(screenName, container) {
       // Кнопка «Записаться»
       if (confirmBtn) {
         confirmBtn.addEventListener('click', () => {
-          if (state.selectedDate && state.selectedTime) {
+          const consent = container.querySelector('#consentCheckbox');
+          if (state.selectedDate && state.selectedTime && consent && consent.checked) {
             submitBooking();
           }
         });

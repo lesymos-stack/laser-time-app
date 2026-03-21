@@ -1,6 +1,7 @@
-// Supabase — настройки подключения
-// anon-ключ МОЖНО хранить в коде — он публичный (как адрес магазина)
-// service_role ключ НЕЛЬЗЯ — он только на сервере
+// API — настройки подключения
+// Вместо Supabase используем свой REST API на VPS (Россия, 152-ФЗ)
 
-const SUPABASE_URL = 'https://jybvgjrdhfycfptwxihn.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_1KaLRmIh5uCpiDXZU_qkEw_lOMF--sn';
+// API на VPS в России (Beget, Санкт-Петербург) — 152-ФЗ
+const API_BASE_URL = 'http://90.156.168.186:3000';
+
+const API_KEY = 'beauty-api-key-2026';

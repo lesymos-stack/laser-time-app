@@ -1,5 +1,5 @@
 /**
- * supabase-api.js — Загрузка данных из Supabase
+ * api.js — Загрузка данных из REST API (PostgreSQL на VPS, Россия)
  *
  * Этот файл — «курьер» между приложением и базой данных.
  * Он знает, куда идти за данными и как их принести.
@@ -11,20 +11,18 @@
  * 4. Все данные фильтруются по master_id — клиент видит только «свой» каталог
  */
 
-// === Supabase клиент (используем REST API напрямую, без SDK) ===
-// Это проще и не требует npm/сборки — работает в обычном HTML
+// === REST API клиент ===
 
 const API = {
-  url: SUPABASE_URL,     // из config.js
-  key: SUPABASE_ANON_KEY, // из config.js
+  url: API_BASE_URL,  // из config.js
+  key: API_KEY,       // из config.js
 
-  // Базовый запрос к Supabase REST API
+  // Базовый GET-запрос
   async fetch(table, query = '') {
-    const response = await fetch(`${this.url}/rest/v1/${table}?${query}`, {
+    const response = await fetch(`${this.url}/api/v1/${table}?${query}`, {
       headers: {
-        'apikey': this.key,
-        'Authorization': `Bearer ${this.key}`,
         'Content-Type': 'application/json',
+        'X-Api-Key': this.key,
       },
     });
 
@@ -38,21 +36,18 @@ const API = {
 
   // POST-запрос (для создания записей)
   async post(table, data) {
-    const response = await fetch(`${this.url}/rest/v1/${table}`, {
+    const response = await fetch(`${this.url}/api/v1/${table}`, {
       method: 'POST',
       headers: {
-        'apikey': this.key,
-        'Authorization': `Bearer ${this.key}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
+        'X-Api-Key': this.key,
       },
       body: JSON.stringify(data),
     });
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
-      console.error(`❌ API POST ${table} error: ${response.status} ${response.statusText}`, errText);
-      // Показываем ошибку на экране для отладки
+      console.error(`API POST ${table} error: ${response.status} ${response.statusText}`, errText);
       window.__lastApiError = `POST ${table}: ${response.status} — ${errText}`;
       return null;
     }
@@ -63,13 +58,11 @@ const API = {
 
   // PATCH-запрос (для обновления записей)
   async patch(table, query, data) {
-    const response = await fetch(`${this.url}/rest/v1/${table}?${query}`, {
+    const response = await fetch(`${this.url}/api/v1/${table}?${query}`, {
       method: 'PATCH',
       headers: {
-        'apikey': this.key,
-        'Authorization': `Bearer ${this.key}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
+        'X-Api-Key': this.key,
       },
       body: JSON.stringify(data),
     });
@@ -84,11 +77,10 @@ const API = {
 
   // DELETE-запрос
   async delete(table, query) {
-    const response = await fetch(`${this.url}/rest/v1/${table}?${query}`, {
+    const response = await fetch(`${this.url}/api/v1/${table}?${query}`, {
       method: 'DELETE',
       headers: {
-        'apikey': this.key,
-        'Authorization': `Bearer ${this.key}`,
+        'X-Api-Key': this.key,
       },
     });
 
@@ -100,39 +92,18 @@ const API = {
     return true;
   },
 
-  // Загрузка файла в Storage
+  // Загрузка файла — TODO: добавить файловое хранилище на VPS
   async uploadFile(bucket, path, file) {
-    const response = await fetch(`${this.url}/storage/v1/object/${bucket}/${path}`, {
-      method: 'POST',
-      headers: {
-        'apikey': this.key,
-        'Authorization': `Bearer ${this.key}`,
-        'Content-Type': file.type,
-      },
-      body: file,
-    });
-
-    if (!response.ok) {
-      console.error('Upload error:', response.status);
-      return null;
-    }
-
-    return `${this.url}/storage/v1/object/public/${bucket}/${path}`;
+    // Пока фото хранятся как URL (внешние ссылки)
+    // В будущем: загрузка на VPS через /api/v1/upload
+    console.warn('uploadFile: file storage not yet migrated to VPS');
+    return null;
   },
 
-  // Удаление файла из Storage
+  // Удаление файла
   async deleteFile(bucket, paths) {
-    const response = await fetch(`${this.url}/storage/v1/object/${bucket}`, {
-      method: 'DELETE',
-      headers: {
-        'apikey': this.key,
-        'Authorization': `Bearer ${this.key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prefixes: paths }),
-    });
-
-    return response.ok;
+    console.warn('deleteFile: file storage not yet migrated to VPS');
+    return false;
   },
 };
 
