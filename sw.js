@@ -1,9 +1,10 @@
 // Service Worker — Beauty Platform PWA
-const CACHE_NAME = 'beauty-v1';
+const CACHE_NAME = 'beauty-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/app.js',
+  '/auth.js',
   '/styles.css',
   '/config.js',
   '/supabase-api.js',
