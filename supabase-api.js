@@ -110,21 +110,40 @@ const API = {
 
 // === Определение мастера ===
 
-// Получаем bot_username из URL-параметра ?bot=xxx
-function getBotUsername() {
+// Получаем идентификатор мастера из URL (?bot=xxx или ?master=slug)
+function getMasterIdentifier() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('bot');
+  return {
+    bot: params.get('bot'),
+    master: params.get('master'),
+  };
 }
 
-// Загружаем мастера по bot_username
-async function loadMaster(botUsername) {
-  if (!botUsername) {
-    console.warn('Нет параметра ?bot= в URL, используем первого мастера');
-    const masters = await API.fetch('masters', 'is_active=eq.true&limit=1');
+// Обратная совместимость
+function getBotUsername() {
+  return getMasterIdentifier().bot;
+}
+
+// Загружаем мастера по bot_username или slug
+async function loadMaster(identifier) {
+  // Строка — старый формат (bot_username)
+  if (typeof identifier === 'string') {
+    identifier = { bot: identifier };
+  }
+
+  if (identifier && identifier.bot) {
+    const masters = await API.fetch('masters', `bot_username=eq.${identifier.bot}&is_active=eq.true`);
     return masters && masters[0] ? masters[0] : null;
   }
 
-  const masters = await API.fetch('masters', `bot_username=eq.${botUsername}&is_active=eq.true`);
+  if (identifier && identifier.master) {
+    const masters = await API.fetch('masters', `slug=eq.${identifier.master}&is_active=eq.true`);
+    return masters && masters[0] ? masters[0] : null;
+  }
+
+  // Fallback — первый активный мастер
+  console.warn('Нет параметра ?bot= или ?master= в URL, используем первого мастера');
+  const masters = await API.fetch('masters', 'is_active=eq.true&limit=1');
   return masters && masters[0] ? masters[0] : null;
 }
 
@@ -614,9 +633,9 @@ async function loadClientBonus(masterId, tgUserId, phone) {
 // === Главная функция загрузки всех данных ===
 
 async function loadAllData() {
-  // 1. Определяем мастера
-  const botUsername = getBotUsername();
-  const master = await loadMaster(botUsername);
+  // 1. Определяем мастера (по ?bot= или ?master=)
+  const identifier = getMasterIdentifier();
+  const master = await loadMaster(identifier);
 
   if (!master) {
     console.error('Мастер не найден!');
@@ -676,4 +695,52 @@ async function loadAllData() {
     bookedSlots: bookedSlots.map(b => `${b.date}_${b.time.substring(0, 5)}`),
     busyIntervals: BUSY_INTERVALS,
   };
+}
+
+// === Уведомления ===
+
+async function loadNotifications() {
+  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+  if (!auth || !auth.access_token) return [];
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/notifications?order=created_at.desc&limit=50`, {
+      headers: { 'Authorization': `Bearer ${auth.access_token}` }
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
+async function getUnreadNotifCount() {
+  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+  if (!auth || !auth.access_token) return 0;
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/notifications?read=eq.false&order=created_at.desc`, {
+      headers: { 'Authorization': `Bearer ${auth.access_token}` }
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.length;
+  } catch { return 0; }
+}
+
+async function markNotificationRead(id) {
+  return API.patch('notifications', `id=eq.${id}`, { read: true });
+}
+
+async function markAllNotificationsRead() {
+  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+  if (!auth) return;
+  const phone = JSON.parse(atob(auth.access_token.split('.')[1])).phone;
+  return API.patch('notifications', `user_phone=eq.${phone}&read=eq.false`, { read: true });
+}
+
+async function createNotification(userPhone, masterId, type, title, body) {
+  return API.post('notifications', {
+    user_phone: userPhone,
+    master_id: masterId,
+    type: type,
+    title: title,
+    body: body,
+  });
 }

@@ -111,6 +111,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { CLIENT_BONUS = 0; }
       }
 
+      // Автовход мастера — если телефон совпадает
+      if (currentUser && currentUser.phone && MASTER && MASTER.phone) {
+        const userPhone = currentUser.phone.replace(/\D/g, '');
+        const masterPhone = MASTER.phone.replace(/\D/g, '');
+        if (userPhone.length >= 10 && masterPhone.length >= 10 &&
+            (userPhone === masterPhone || userPhone.endsWith(masterPhone.slice(-10)) || masterPhone.endsWith(userPhone.slice(-10)))) {
+          state.masterUnlocked = true;
+          console.log('🔓 Мастер авторизован по телефону');
+        }
+      }
+
       console.log('✅ Данные загружены');
     } else {
       console.warn('⚠️ API недоступен, используем локальные данные');
@@ -127,6 +138,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Успешный вход — перезагружаем
       location.reload();
     });
+    return;
+  }
+
+  // Создаём колокольчик уведомлений
+  createNotificationBell();
+
+  // Проверяем URL-параметр ?page=register
+  const pageParam = new URLSearchParams(window.location.search).get('page');
+  if (pageParam === 'register') {
+    renderScreen('register');
     return;
   }
 
@@ -210,6 +231,7 @@ function renderScreen(screenName, isBack = false) {
     case 'abonement': html = renderAbonement(); break;
     case 'masterLogin': html = renderMasterLogin(); break;
     case 'masterPanel': html = renderMasterPanel(); break;
+    case 'register': html = renderRegisterMaster(); break;
   }
 
   const newScreen = document.createElement('div');
@@ -832,9 +854,25 @@ function renderAbonementForm() {
 
 // --- Вкладка «Рассылка» ---
 function renderBroadcastForm() {
+  const clients = state.masterClients || [];
+  const clientListHTML = clients.length
+    ? `<div class="broadcast-select-all">
+         <label><input type="checkbox" id="selectAllClients" checked> Выбрать всех (${clients.length})</label>
+       </div>` +
+      clients.map(c => {
+        const name = c.first_name || 'Клиент';
+        const info = c.phone ? ` (${c.phone})` : c.username ? ` (@${c.username})` : '';
+        return `<label class="broadcast-client-row">
+          <input type="checkbox" class="broadcast-client-check" data-phone="${c.phone || ''}" data-tg="${c.tg_user_id || ''}" checked>
+          <span>${name}${info}</span>
+        </label>`;
+      }).join('')
+    : '<div class="history-empty">Нет клиентов для рассылки</div>';
+
   return `
     <div class="master-section-title">Рассылка клиентам</div>
-    <div class="broadcast-info">Сообщение будет отправлено всем вашим клиентам через бота.</div>
+    <div class="broadcast-info">Выберите клиентов и напишите сообщение.</div>
+    ${clientListHTML}
     <textarea id="broadcastText" class="broadcast-textarea" placeholder="Введите текст сообщения..." rows="5"></textarea>
     <button class="booking-confirm-btn" id="sendBroadcastBtn">Отправить рассылку</button>
     <div id="broadcastResult" class="broadcast-result"></div>
@@ -1808,6 +1846,66 @@ function bindEvents(screenName, container) {
       }
       break;
 
+    case 'register':
+      // Slug preview
+      const slugInput = container.querySelector('#regSlug');
+      const slugPreview = container.querySelector('#slugPreview');
+      if (slugInput && slugPreview) {
+        slugInput.addEventListener('input', () => {
+          const val = slugInput.value.replace(/[^a-z0-9-]/gi, '').toLowerCase();
+          slugInput.value = val;
+          slugPreview.textContent = val || '...';
+        });
+      }
+      // Submit
+      const regSubmitBtn = container.querySelector('#regSubmitBtn');
+      if (regSubmitBtn) {
+        regSubmitBtn.addEventListener('click', async () => {
+          const name = container.querySelector('#regName')?.value.trim();
+          const slug = container.querySelector('#regSlug')?.value.trim();
+          const description = container.querySelector('#regDescription')?.value.trim();
+          const resultDiv = container.querySelector('#regResult');
+
+          if (!name || !slug) {
+            if (resultDiv) resultDiv.innerHTML = '<span style="color:red">Заполните название и URL-адрес</span>';
+            return;
+          }
+          if (slug.length < 3) {
+            if (resultDiv) resultDiv.innerHTML = '<span style="color:red">URL-адрес минимум 3 символа</span>';
+            return;
+          }
+
+          regSubmitBtn.disabled = true;
+          regSubmitBtn.textContent = 'Регистрация...';
+
+          try {
+            const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+            const res = await fetch(`${API_BASE_URL}/api/v1/auth/register-master`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': auth ? `Bearer ${auth.access_token}` : '',
+              },
+              body: JSON.stringify({ name, slug, description }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Готово! Ваша ссылка: <b>beautyplatform.ru/?master=${slug}</b></span>`;
+              regSubmitBtn.textContent = 'Зарегистрирован';
+            } else {
+              if (resultDiv) resultDiv.innerHTML = `<span style="color:red">${data.error || 'Ошибка регистрации'}</span>`;
+              regSubmitBtn.disabled = false;
+              regSubmitBtn.textContent = 'Зарегистрироваться';
+            }
+          } catch (err) {
+            if (resultDiv) resultDiv.innerHTML = `<span style="color:red">Ошибка сети: ${err.message}</span>`;
+            regSubmitBtn.disabled = false;
+            regSubmitBtn.textContent = 'Зарегистрироваться';
+          }
+        });
+      }
+      break;
+
     case 'masterPanel':
       // Вкладка «Клиент»
       const roleClientBtn = container.querySelector('#roleClientFromMaster');
@@ -1938,6 +2036,14 @@ function bindEvents(screenName, container) {
       }
 
       // --- Рассылка ---
+      // "Выбрать всех" чекбокс
+      const selectAllBox = container.querySelector('#selectAllClients');
+      if (selectAllBox) {
+        selectAllBox.addEventListener('change', () => {
+          container.querySelectorAll('.broadcast-client-check').forEach(cb => { cb.checked = selectAllBox.checked; });
+        });
+      }
+
       const sendBroadcastBtn = container.querySelector('#sendBroadcastBtn');
       if (sendBroadcastBtn) {
         sendBroadcastBtn.addEventListener('click', async () => {
@@ -1950,30 +2056,44 @@ function bindEvents(screenName, container) {
             return;
           }
 
+          const selected = container.querySelectorAll('.broadcast-client-check:checked');
+          if (selected.length === 0) {
+            if (resultDiv) resultDiv.innerHTML = '<span style="color:red">Выберите хотя бы одного клиента</span>';
+            return;
+          }
+
           sendBroadcastBtn.disabled = true;
           sendBroadcastBtn.textContent = 'Отправка...';
 
+          let sentCount = 0;
           try {
-            const resp = await fetch(`/api/broadcast`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                master_id: CURRENT_MASTER_ID,
-                master_code: MASTER_CODE,
-                message: message,
-              }),
-            });
-
-            const data = await resp.json();
-            if (resp.ok) {
-              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Отправлено: ${data.sent} из ${data.total}</span>`;
-              if (textarea) textarea.value = '';
-              haptic('notification', 'success');
-            } else {
-              if (resultDiv) resultDiv.innerHTML = `<span style="color:red">Ошибка: ${data.error}</span>`;
+            // Сохраняем уведомления для клиентов с телефоном
+            for (const cb of selected) {
+              const phone = cb.dataset.phone;
+              if (phone && typeof createNotification === 'function') {
+                await createNotification(phone.replace(/\D/g, ''), CURRENT_MASTER_ID, 'broadcast', MASTER.name || 'Рассылка', message);
+                sentCount++;
+              }
             }
+
+            // Также отправляем через Telegram-бот (для TG-клиентов)
+            try {
+              await fetch(`${API_BASE_URL}/api/broadcast`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  master_id: CURRENT_MASTER_ID,
+                  master_code: MASTER_CODE,
+                  message: message,
+                }),
+              });
+            } catch (e) { /* бот-рассылка опциональна */ }
+
+            if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Отправлено: ${sentCount} уведомлений</span>`;
+            if (textarea) textarea.value = '';
+            haptic('notification', 'success');
           } catch (err) {
-            if (resultDiv) resultDiv.innerHTML = `<span style="color:red">Ошибка сети: ${err.message}</span>`;
+            if (resultDiv) resultDiv.innerHTML = `<span style="color:red">Ошибка: ${err.message}</span>`;
           }
 
           sendBroadcastBtn.disabled = false;
@@ -2755,6 +2875,149 @@ function showOfferIfNeeded() {
 // ============================================================
 // НИЖНИЙ ТАБ-БАР
 // ============================================================
+
+// === Регистрация мастера через веб ===
+
+function renderRegisterMaster() {
+  const user = getCurrentUser();
+  const phone = user ? user.phone : '';
+  return `
+    <div class="login-screen" style="padding-top: 40px;">
+      <div class="login-logo">💼</div>
+      <div class="login-title">Регистрация мастера</div>
+      <div class="login-subtitle">Создайте аккаунт и начните принимать клиентов</div>
+
+      <div style="padding: 0 20px; width: 100%; max-width: 400px; box-sizing: border-box;">
+        <label class="login-label" style="margin-top:16px">Название салона / имя мастера *</label>
+        <input type="text" id="regName" class="login-input" placeholder="Студия Анны" style="width:100%" />
+
+        <label class="login-label" style="margin-top:12px">Телефон</label>
+        <input type="tel" id="regPhone" class="login-input" value="${phone}" style="width:100%" readonly />
+
+        <label class="login-label" style="margin-top:12px">Описание</label>
+        <textarea id="regDescription" class="login-input" rows="3" placeholder="Кратко опишите ваши услуги" style="width:100%;resize:vertical"></textarea>
+
+        <label class="login-label" style="margin-top:12px">URL-адрес (slug) *</label>
+        <input type="text" id="regSlug" class="login-input" placeholder="my-salon" style="width:100%" />
+        <div style="font-size:12px;color:var(--tg-theme-hint-color,#999);margin-top:4px">
+          Ваша ссылка: beautyplatform.ru/?master=<span id="slugPreview">...</span>
+        </div>
+
+        <button class="login-btn" id="regSubmitBtn" style="margin-top:20px">Зарегистрироваться</button>
+        <div id="regResult" style="margin-top:12px;text-align:center"></div>
+      </div>
+    </div>
+  `;
+}
+
+// === Колокольчик уведомлений ===
+
+let _notifInterval = null;
+
+function createNotificationBell() {
+  const user = getCurrentUser();
+  if (!user || !user.phone) return;
+
+  if (document.getElementById('notifBellContainer')) return;
+
+  const bell = document.createElement('div');
+  bell.id = 'notifBellContainer';
+  bell.innerHTML = '<button class="notification-bell" id="notifBell">🔔</button>';
+  document.body.appendChild(bell);
+
+  bell.addEventListener('click', toggleNotificationPanel);
+
+  // Обновляем счётчик сразу и каждые 30 сек
+  refreshNotifCount();
+  _notifInterval = setInterval(refreshNotifCount, 30000);
+}
+
+async function refreshNotifCount() {
+  if (typeof getUnreadNotifCount !== 'function') return;
+  const count = await getUnreadNotifCount();
+  const bell = document.getElementById('notifBell');
+  if (!bell) return;
+  const existing = bell.querySelector('.notif-badge');
+  if (existing) existing.remove();
+  if (count > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'notif-badge';
+    badge.textContent = count > 99 ? '99+' : count;
+    bell.appendChild(badge);
+  }
+}
+
+async function toggleNotificationPanel() {
+  let panel = document.getElementById('notificationPanel');
+  if (panel) {
+    panel.remove();
+    return;
+  }
+
+  panel = document.createElement('div');
+  panel.id = 'notificationPanel';
+  panel.className = 'notification-panel';
+  panel.innerHTML = '<div class="notif-panel-header"><span>Уведомления</span><button id="notifMarkAll" class="notif-mark-all">Прочитать все</button></div><div class="notif-panel-list" id="notifList">Загрузка...</div>';
+  document.body.appendChild(panel);
+
+  // Загружаем уведомления
+  if (typeof loadNotifications === 'function') {
+    const notifs = await loadNotifications();
+    const list = document.getElementById('notifList');
+    if (!notifs || notifs.length === 0) {
+      list.innerHTML = '<div class="notif-empty">Нет уведомлений</div>';
+    } else {
+      list.innerHTML = notifs.map(n => `
+        <div class="notification-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
+          <div class="notif-title">${escapeHtml(n.title)}</div>
+          <div class="notif-body">${escapeHtml(n.body)}</div>
+          <div class="notif-time">${formatNotifTime(n.created_at)}</div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Кнопка "Прочитать все"
+  document.getElementById('notifMarkAll')?.addEventListener('click', async () => {
+    if (typeof markAllNotificationsRead === 'function') {
+      await markAllNotificationsRead();
+      document.querySelectorAll('.notification-item.unread').forEach(el => el.classList.remove('unread'));
+      refreshNotifCount();
+    }
+  });
+
+  // Закрытие по клику вне панели
+  setTimeout(() => {
+    document.addEventListener('click', closeNotifOnOutsideClick);
+  }, 100);
+}
+
+function closeNotifOnOutsideClick(e) {
+  const panel = document.getElementById('notificationPanel');
+  const bell = document.getElementById('notifBellContainer');
+  if (panel && !panel.contains(e.target) && !bell.contains(e.target)) {
+    panel.remove();
+    document.removeEventListener('click', closeNotifOnOutsideClick);
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatNotifTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'только что';
+  if (diffMin < 60) return `${diffMin} мин назад`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH} ч назад`;
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
 
 function createTabBar() {
   const bar = document.createElement('nav');
