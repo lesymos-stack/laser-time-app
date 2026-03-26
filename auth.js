@@ -134,12 +134,12 @@ function renderLoginScreen() {
             <input type="tel" id="loginPhone" class="login-input" placeholder="(___) ___-__-__" maxlength="15" autocomplete="tel" />
           </div>
         </div>
-        <button class="login-btn" id="sendCodeBtn">Получить код</button>
+        <button class="login-btn" id="sendCodeBtn">Позвонить мне</button>
         <div id="loginError" class="login-error"></div>
       </div>
 
       <div id="loginStep2" style="display:none">
-        <div class="login-hint">Код отправлен на <b id="loginPhoneDisplay"></b></div>
+        <div class="login-hint">Вам звонят на <b id="loginPhoneDisplay"></b><br>Введите последние 4 цифры входящего номера</div>
         <div class="login-code-inputs" id="codeInputs">
           <input type="tel" class="login-code-digit" maxlength="1" data-idx="0" autocomplete="one-time-code" />
           <input type="tel" class="login-code-digit" maxlength="1" data-idx="1" />
@@ -149,7 +149,7 @@ function renderLoginScreen() {
         <div id="verifyError" class="login-error"></div>
         <div class="login-resend" id="resendBlock">
           <span id="resendTimer"></span>
-          <button class="login-resend-btn" id="resendBtn" style="display:none">Отправить код повторно</button>
+          <button class="login-resend-btn" id="resendBtn" style="display:none">Позвонить повторно</button>
         </div>
         <button class="login-back-link" id="changePhoneBtn">Изменить номер</button>
       </div>
@@ -199,12 +199,12 @@ function initLoginHandlers(onSuccess) {
       }
       currentPhone = '+7' + raw;
       sendCodeBtn.disabled = true;
-      sendCodeBtn.textContent = 'Отправка...';
+      sendCodeBtn.textContent = 'Звоним...';
       loginError.textContent = '';
 
       const result = await sendOtp(currentPhone);
       sendCodeBtn.disabled = false;
-      sendCodeBtn.textContent = 'Получить код';
+      sendCodeBtn.textContent = 'Позвонить мне';
 
       if (result.error) {
         loginError.textContent = result.error;
