@@ -1,5 +1,5 @@
 // Service Worker — Beauty Platform PWA
-const CACHE_NAME = 'beauty-v2';
+const CACHE_NAME = 'beauty-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push notifications (Phase 3 — placeholder)
+// Push notifications
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'Beauty Platform';
@@ -73,7 +73,9 @@ self.addEventListener('push', (event) => {
     body: data.body || '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
-    data: data.url || '/',
+    tag: data.data?.type || 'default',
+    renotify: true,
+    data: data.data || {},
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -81,6 +83,17 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow(event.notification.data || '/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Если приложение уже открыто — фокусируемся на нём
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin)) {
+          client.focus();
+          client.postMessage({ type: 'PUSH_CLICK', data: event.notification.data });
+          return;
+        }
+      }
+      // Иначе открываем новую вкладку
+      return clients.openWindow('/');
+    })
   );
 });

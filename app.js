@@ -144,6 +144,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Создаём колокольчик уведомлений
   createNotificationBell();
 
+  // Запрашиваем разрешение на push-уведомления
+  requestPushPermission();
+
   // Проверяем URL-параметр ?page=register
   const pageParam = new URLSearchParams(window.location.search).get('page');
   if (pageParam === 'register') {
@@ -2913,6 +2916,70 @@ function renderRegisterMaster() {
 // === Колокольчик уведомлений ===
 
 let _notifInterval = null;
+
+// --- Web Push ---
+async function requestPushPermission() {
+  const user = getCurrentUser();
+  if (!user || !user.phone) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const reg = await navigator.serviceWorker.ready;
+
+    // Получаем VAPID public key с сервера
+    const keyRes = await fetch(`${API_BASE_URL}/api/v1/push/vapid-key`);
+    const { publicKey } = await keyRes.json();
+    if (!publicKey) return;
+
+    // Подписываемся
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+
+    // Отправляем подписку на сервер
+    const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+    if (!auth) return;
+
+    await fetch(`${API_BASE_URL}/api/v1/push/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${auth.access_token}`,
+      },
+      body: JSON.stringify(sub.toJSON()),
+    });
+    console.log('Push subscription saved');
+  } catch (err) {
+    console.warn('Push subscription error:', err.message);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Обработка клика на push-уведомление (из SW)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'PUSH_CLICK') {
+      // Обновляем колокольчик
+      refreshNotifCount();
+      // Открываем панель уведомлений
+      toggleNotificationPanel();
+    }
+  });
+}
 
 function createNotificationBell() {
   const user = getCurrentUser();
