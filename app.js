@@ -2967,13 +2967,59 @@ async function toggleNotificationPanel() {
     if (!notifs || notifs.length === 0) {
       list.innerHTML = '<div class="notif-empty">Нет уведомлений</div>';
     } else {
-      list.innerHTML = notifs.map(n => `
-        <div class="notification-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
-          <div class="notif-title">${escapeHtml(n.title)}</div>
-          <div class="notif-body">${escapeHtml(n.body)}</div>
-          <div class="notif-time">${formatNotifTime(n.created_at)}</div>
-        </div>
-      `).join('');
+      list.innerHTML = notifs.map(n => {
+        const isReminder = n.type === 'reminder' && n.booking_id;
+        const actions = isReminder ? `
+          <div class="notif-actions" data-booking-id="${n.booking_id}" data-notif-id="${n.id}">
+            <button class="notif-action-btn confirm" data-action="confirmed">Подтвердить</button>
+            <button class="notif-action-btn cancel" data-action="cancelled">Отменить</button>
+            <button class="notif-action-btn reschedule" data-action="reschedule">Перенести</button>
+          </div>` : '';
+        return `
+          <div class="notification-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
+            <div class="notif-title">${escapeHtml(n.title)}</div>
+            <div class="notif-body">${escapeHtml(n.body)}</div>
+            ${actions}
+            <div class="notif-time">${formatNotifTime(n.created_at)}</div>
+          </div>`;
+      }).join('');
+
+      // Обработчики кнопок действий
+      list.querySelectorAll('.notif-action-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const actionDiv = btn.closest('.notif-actions');
+          const bookingId = actionDiv.dataset.bookingId;
+          const notifId = actionDiv.dataset.notifId;
+          const action = btn.dataset.action;
+
+          btn.disabled = true;
+          btn.textContent = '...';
+
+          try {
+            if (action === 'reschedule') {
+              // Отменяем и переходим к записи
+              await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
+              actionDiv.innerHTML = '<div class="notif-action-done">Запись отменена. Выберите новую дату.</div>';
+              if (typeof markNotificationRead === 'function') await markNotificationRead(notifId);
+              // Переходим на главную для перезаписи
+              setTimeout(() => {
+                const panel = document.getElementById('notificationPanel');
+                if (panel) panel.remove();
+                navigateTo('home');
+              }, 1500);
+            } else {
+              await API.patch('bookings', `id=eq.${bookingId}`, { status: action });
+              const label = action === 'confirmed' ? 'Запись подтверждена!' : 'Запись отменена';
+              actionDiv.innerHTML = `<div class="notif-action-done">${label}</div>`;
+              if (typeof markNotificationRead === 'function') await markNotificationRead(notifId);
+            }
+            refreshNotifCount();
+          } catch (err) {
+            btn.textContent = 'Ошибка';
+          }
+        });
+      });
     }
   }
 
