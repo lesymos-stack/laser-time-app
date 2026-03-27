@@ -1867,11 +1867,28 @@ function bindEvents(screenName, container) {
       break;
 
     case 'register':
-      // Slug preview
       const slugInput = container.querySelector('#regSlug');
       const slugPreview = container.querySelector('#slugPreview');
-      if (slugInput && slugPreview) {
+      const nameInput = container.querySelector('#regName');
+
+      // Функция генерации slug из имени
+      function nameToSlug(name) {
+        const map = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',' ':'-'};
+        return name.toLowerCase().split('').map(c => map[c] !== undefined ? map[c] : /[a-z0-9-]/.test(c) ? c : '').join('').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
+      }
+
+      // При вводе имени — автогенерация slug (только если пользователь ещё не менял вручную)
+      let slugManuallyEdited = false;
+      if (nameInput && slugInput && slugPreview) {
+        nameInput.addEventListener('input', () => {
+          if (!slugManuallyEdited) {
+            const generated = nameToSlug(nameInput.value);
+            slugInput.value = generated;
+            slugPreview.textContent = generated || '...';
+          }
+        });
         slugInput.addEventListener('input', () => {
+          slugManuallyEdited = true;
           const val = slugInput.value.replace(/[^a-z0-9-]/gi, '').toLowerCase();
           slugInput.value = val;
           slugPreview.textContent = val || '...';
@@ -2992,11 +3009,12 @@ function renderRegisterMaster() {
         <label class="login-label" style="margin-top:12px">Описание</label>
         <textarea id="regDescription" class="login-input" rows="3" placeholder="Кратко опишите ваши услуги" style="width:100%;resize:vertical"></textarea>
 
-        <label class="login-label" style="margin-top:12px">URL-адрес (slug) *</label>
-        <input type="text" id="regSlug" class="login-input" placeholder="my-salon" style="width:100%" />
+        <label class="login-label" style="margin-top:12px">Адрес страницы *</label>
+        <input type="text" id="regSlug" class="login-input" placeholder="anna-laser" style="width:100%" />
         <div style="font-size:12px;color:var(--tg-theme-hint-color,#999);margin-top:4px">
-          Ваша ссылка: beautyplatform.ru/?master=<span id="slugPreview">...</span>
+          Ваша ссылка: laser-time-app.vercel.app/?master=<span id="slugPreview">...</span>
         </div>
+        <div style="font-size:11px;color:var(--tg-theme-hint-color,#aaa);margin-top:2px">Только латинские буквы, цифры и дефис. Можно изменить.</div>
 
         <button class="login-btn" id="regSubmitBtn" style="margin-top:20px">Зарегистрироваться</button>
         <div id="regResult" style="margin-top:12px;text-align:center"></div>
