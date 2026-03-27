@@ -2546,6 +2546,110 @@ img {
   padding: 4px 0;
 }
 
+/* --- Супер-админ панель --- */
+.sadmin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 16px 8px;
+}
+.sadmin-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+.sadmin-logout-btn {
+  background: none;
+  border: 1px solid var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #999);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.sadmin-stats {
+  display: flex;
+  gap: 12px;
+  padding: 8px 16px 16px;
+}
+.sadmin-stat {
+  flex: 1;
+  background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.sadmin-stat-val {
+  font-size: 24px;
+  font-weight: 700;
+}
+.sadmin-stat-label {
+  font-size: 11px;
+  color: var(--tg-theme-hint-color, #999);
+  margin-top: 2px;
+}
+.sadmin-master-row {
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 12px;
+  margin: 8px 16px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.sadmin-paused {
+  opacity: 0.6;
+}
+.sadmin-master-info {
+  flex: 1;
+  min-width: 0;
+}
+.sadmin-master-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.sadmin-master-meta {
+  font-size: 12px;
+  color: var(--tg-theme-hint-color, #999);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sadmin-link {
+  color: var(--tg-theme-link-color, #007aff);
+  text-decoration: none;
+}
+.sadmin-master-status {
+  font-size: 12px;
+}
+.sadmin-master-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.sadmin-btn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sadmin-btn.pause   { background: #ff9500; color: #fff; }
+.sadmin-btn.resume  { background: #34c759; color: #fff; }
+.sadmin-btn.delete  { background: #ff3b30; color: #fff; }
+.sadmin-btn:disabled { opacity: 0.5; }
+.sadmin-empty {
+  text-align: center;
+  color: var(--tg-theme-hint-color, #999);
+  padding: 40px 20px;
+}
+
 /* --- Рассылка с чекбоксами --- */
 .broadcast-select-all {
   padding: 10px 16px;

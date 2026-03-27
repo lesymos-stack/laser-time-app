@@ -147,10 +147,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Запрашиваем разрешение на push-уведомления
   requestPushPermission();
 
-  // Проверяем URL-параметр ?page=register
+  // Проверяем URL-параметр ?page=
   const pageParam = new URLSearchParams(window.location.search).get('page');
   if (pageParam === 'register') {
     renderScreen('register');
+    return;
+  }
+  if (pageParam === 'superadmin') {
+    renderScreen('superadmin');
     return;
   }
 
@@ -235,6 +239,7 @@ function renderScreen(screenName, isBack = false) {
     case 'masterLogin': html = renderMasterLogin(); break;
     case 'masterPanel': html = renderMasterPanel(); break;
     case 'register': html = renderRegisterMaster(); break;
+    case 'superadmin': html = renderSuperAdmin(); break;
   }
 
   const newScreen = document.createElement('div');
@@ -1921,6 +1926,81 @@ function bindEvents(screenName, container) {
       }
       break;
 
+    case 'superadmin':
+      // Логин
+      const adminLoginBtn = container.querySelector('#adminLoginBtn');
+      if (adminLoginBtn) {
+        const doLogin = async () => {
+          const pwd = container.querySelector('#adminPasswordInput')?.value;
+          const errDiv = container.querySelector('#adminLoginError');
+          if (!pwd) return;
+          // Проверяем пароль через API
+          try {
+            const res = await fetch(`${API_BASE_URL}/api/v1/auth/admin-login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: pwd }),
+            });
+            if (res.ok) {
+              sessionStorage.setItem(SUPERADMIN_KEY, '1');
+              state.adminMasters = await loadAllMasters();
+              state.currentScreen = '_refresh';
+              navigateTo('superadmin', false);
+            } else {
+              if (errDiv) errDiv.textContent = 'Неверный пароль';
+            }
+          } catch (e) {
+            if (errDiv) errDiv.textContent = 'Ошибка сети';
+          }
+        };
+        adminLoginBtn.addEventListener('click', doLogin);
+        container.querySelector('#adminPasswordInput')?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') doLogin();
+        });
+      }
+
+      // Выход
+      container.querySelector('#sadminLogout')?.addEventListener('click', () => {
+        sessionStorage.removeItem(SUPERADMIN_KEY);
+        state.currentScreen = '_refresh';
+        navigateTo('superadmin', false);
+      });
+
+      // Пауза / Включить
+      container.querySelectorAll('.sadmin-btn.pause, .sadmin-btn.resume').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const masterId = btn.dataset.masterId;
+          const isActive = btn.dataset.active === 'true';
+          btn.disabled = true;
+          btn.textContent = '...';
+          await toggleMasterActive(masterId, !isActive);
+          state.adminMasters = await loadAllMasters();
+          state.currentScreen = '_refresh';
+          navigateTo('superadmin', false);
+        });
+      });
+
+      // Удалить
+      container.querySelectorAll('.sadmin-btn.delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.masterName;
+          if (!confirm(`Удалить мастера "${name}"?\n\nВсе услуги, категории и записи тоже будут удалены.`)) return;
+          btn.disabled = true;
+          btn.textContent = '...';
+          await deleteMasterAdmin(btn.dataset.masterId);
+          state.adminMasters = await loadAllMasters();
+          state.currentScreen = '_refresh';
+          navigateTo('superadmin', false);
+        });
+      });
+
+      // Добавить мастера — переход на регистрацию
+      container.querySelector('#sadminAddBtn')?.addEventListener('click', () => {
+        window.open('/?page=register', '_blank');
+      });
+
+      break;
+
     case 'masterPanel':
       // Вкладка «Клиент»
       const roleClientBtn = container.querySelector('#roleClientFromMaster');
@@ -2926,6 +3006,86 @@ function renderRegisterMaster() {
 }
 
 // === Колокольчик уведомлений ===
+
+// ============================================================
+// СУПЕР-АДМИН ПАНЕЛЬ (только для владельца платформы)
+// URL: ?page=superadmin   Пароль: в .env ADMIN_PASSWORD
+// ============================================================
+
+const SUPERADMIN_KEY = 'superadmin_auth';
+
+function renderSuperAdmin() {
+  const authed = sessionStorage.getItem(SUPERADMIN_KEY);
+  if (!authed) return renderSuperAdminLogin();
+  return renderSuperAdminPanel();
+}
+
+function renderSuperAdminLogin() {
+  return `
+    <div class="login-screen" style="padding-top: 60px;">
+      <div class="login-logo">🔐</div>
+      <div class="login-title">Управление платформой</div>
+      <div class="login-subtitle">Введите пароль администратора</div>
+      <div style="padding: 0 20px; width: 100%; max-width: 360px; box-sizing: border-box;">
+        <input class="phone-input" type="password" id="adminPasswordInput" placeholder="Пароль" autocomplete="off" style="margin-top: 32px;">
+        <button class="phone-submit-btn" id="adminLoginBtn" style="margin-top: 16px;">Войти</button>
+        <div id="adminLoginError" style="color:red; text-align:center; margin-top:12px; font-size:14px;"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSuperAdminPanel() {
+  const masters = state.adminMasters || [];
+  const tab = state.adminTab || 'masters';
+
+  const masterRows = masters.map(m => `
+    <div class="sadmin-master-row ${m.is_active ? '' : 'sadmin-paused'}">
+      <div class="sadmin-master-info">
+        <div class="sadmin-master-name">${escapeHtml(m.name)}</div>
+        <div class="sadmin-master-meta">
+          ${m.phone ? '📞 ' + m.phone + ' · ' : ''}
+          ${m.slug ? '<a href="/?master=' + m.slug + '" target="_blank" class="sadmin-link">/' + m.slug + '</a>' : ''}
+          ${m.bot_username ? ' · @' + m.bot_username : ''}
+        </div>
+        <div class="sadmin-master-status">${m.is_active ? '✅ Активен' : '⏸ Пауза'}</div>
+      </div>
+      <div class="sadmin-master-actions">
+        <button class="sadmin-btn ${m.is_active ? 'pause' : 'resume'}" data-master-id="${m.id}" data-active="${m.is_active}">
+          ${m.is_active ? 'Пауза' : 'Включить'}
+        </button>
+        <button class="sadmin-btn delete" data-master-id="${m.id}" data-master-name="${escapeHtml(m.name)}">Удалить</button>
+      </div>
+    </div>
+  `).join('') || '<div class="sadmin-empty">Мастеров нет</div>';
+
+  return `
+    <div class="history-screen admin-panel">
+      <div class="sadmin-header">
+        <div class="sadmin-title">🔐 Панель администратора</div>
+        <button class="sadmin-logout-btn" id="sadminLogout">Выйти</button>
+      </div>
+      <div class="sadmin-stats">
+        <div class="sadmin-stat">
+          <div class="sadmin-stat-val">${masters.length}</div>
+          <div class="sadmin-stat-label">Всего</div>
+        </div>
+        <div class="sadmin-stat">
+          <div class="sadmin-stat-val">${masters.filter(m => m.is_active).length}</div>
+          <div class="sadmin-stat-label">Активных</div>
+        </div>
+        <div class="sadmin-stat">
+          <div class="sadmin-stat-val">${masters.filter(m => !m.is_active).length}</div>
+          <div class="sadmin-stat-label">На паузе</div>
+        </div>
+      </div>
+      <div class="sadmin-masters-list" id="sadminList">
+        ${masterRows}
+      </div>
+      <button class="admin-add-btn" id="sadminAddBtn" style="margin: 16px;">+ Добавить мастера</button>
+    </div>
+  `;
+}
 
 let _notifInterval = null;
 

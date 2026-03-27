@@ -758,3 +758,33 @@ async function createNotification(userPhone, masterId, type, title, body) {
     body: body,
   });
 }
+
+// === Супер-админ ===
+
+async function loadAllMasters() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/masters?order=created_at.desc&select=*`, {
+      headers: { 'X-API-Key': API_KEY },
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
+async function toggleMasterActive(masterId, isActive) {
+  return API.patch('masters', `id=eq.${masterId}`, { is_active: isActive });
+}
+
+async function deleteMasterAdmin(masterId) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/delete-master`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
+      },
+      body: JSON.stringify({ master_id: masterId }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
