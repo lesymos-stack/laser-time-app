@@ -2983,7 +2983,7 @@ if ('serviceWorker' in navigator) {
 
 function createNotificationBell() {
   const user = getCurrentUser();
-  if (!user || !user.phone) return;
+  if (!user) return;
 
   if (document.getElementById('notifBellContainer')) return;
 
