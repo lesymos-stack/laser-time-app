@@ -1683,20 +1683,32 @@ function refreshAdminContent(container) {
 // Привязка кнопок удаления фото
 function bindPhotoDeleteButtons(container) {
   container.querySelectorAll('.admin-photo-delete').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.preventDefault();
       const idx = parseInt(btn.dataset.index);
       if (state.editingService?.photos) {
+        const url = state.editingService.photos[idx];
         state.editingService.photos.splice(idx, 1);
         const photosContainer = container.querySelector('#svcPhotos');
         if (photosContainer) {
-          photosContainer.innerHTML = state.editingService.photos.map((url, i) => `
+          photosContainer.innerHTML = state.editingService.photos.map((u, i) => `
             <div class="admin-photo-item" data-index="${i}">
-              <img src="${url}">
+              <img src="${u}">
               <button class="admin-photo-delete" data-index="${i}">×</button>
             </div>
           `).join('');
           bindPhotoDeleteButtons(container);
+        }
+        // Удаляем файл с сервера если это наш VPS
+        if (url && url.includes('api.beautyplatform.ru/uploads/')) {
+          const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+          if (auth) {
+            fetch(`${API_BASE_URL}/api/v1/delete-file`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${auth.access_token}` },
+              body: JSON.stringify({ url }),
+            }).catch(() => {});
+          }
         }
       }
     });

@@ -92,12 +92,26 @@ const API = {
     return true;
   },
 
-  // Загрузка файла — TODO: добавить файловое хранилище на VPS
-  async uploadFile(bucket, path, file) {
-    // Пока фото хранятся как URL (внешние ссылки)
-    // В будущем: загрузка на VPS через /api/v1/upload
-    console.warn('uploadFile: file storage not yet migrated to VPS');
-    return null;
+  // Загрузка файла на VPS
+  async uploadFile(bucket, filePath, file) {
+    const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+    if (!auth) return null;
+    try {
+      const masterId = filePath.split('/')[0] || 'general';
+      const formData = new FormData();
+      formData.append('file', file, file.name || 'photo.jpg');
+      const res = await fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${auth.access_token}` },
+        body: formData,
+      });
+      if (!res.ok) { console.error('Upload failed:', await res.text()); return null; }
+      const data = await res.json();
+      return data.url || null;
+    } catch (err) {
+      console.error('Upload error:', err.message);
+      return null;
+    }
   },
 
   // Удаление файла
