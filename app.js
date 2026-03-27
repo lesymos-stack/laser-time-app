@@ -1976,6 +1976,13 @@ function bindEvents(screenName, container) {
         });
       }
 
+      // Обновить список
+      container.querySelector('#sadminRefresh')?.addEventListener('click', async () => {
+        state.adminMasters = await loadAllMasters();
+        state.currentScreen = '_refresh';
+        navigateTo('superadmin', false);
+      });
+
       // Выход
       container.querySelector('#sadminLogout')?.addEventListener('click', () => {
         sessionStorage.removeItem(SUPERADMIN_KEY);
@@ -3081,7 +3088,10 @@ function renderSuperAdminPanel() {
     <div class="history-screen admin-panel">
       <div class="sadmin-header">
         <div class="sadmin-title">🔐 Панель администратора</div>
-        <button class="sadmin-logout-btn" id="sadminLogout">Выйти</button>
+        <div class="sadmin-header-actions">
+          <button class="sadmin-refresh-btn" id="sadminRefresh">↻</button>
+          <button class="sadmin-logout-btn" id="sadminLogout">Выйти</button>
+        </div>
       </div>
       <div class="sadmin-stats">
         <div class="sadmin-stat">

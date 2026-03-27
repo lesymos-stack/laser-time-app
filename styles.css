@@ -2557,6 +2557,21 @@ img {
   font-size: 18px;
   font-weight: 700;
 }
+.sadmin-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sadmin-refresh-btn {
+  background: none;
+  border: 1px solid var(--tg-theme-hint-color, #999);
+  color: var(--tg-theme-hint-color, #999);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
 .sadmin-logout-btn {
   background: none;
   border: 1px solid var(--tg-theme-hint-color, #999);
