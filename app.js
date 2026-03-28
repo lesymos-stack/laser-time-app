@@ -440,6 +440,12 @@ function renderHome() {
       <span class="home-booking-btn-icon">💌</span> Поделиться с другом
     </button>
 
+    ${(typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isIosInBrowser()) ? `
+    <button class="home-history-btn" id="enablePushBtn" style="background:var(--tg-theme-button-color,#2196F3);color:var(--tg-theme-button-text-color,#fff)">
+      <span class="home-booking-btn-icon">🔔</span> Включить уведомления
+    </button>
+    ` : ''}
+
   `;
 }
 
@@ -1823,6 +1829,18 @@ function bindEvents(screenName, container) {
         });
       }
 
+      // Кнопка «Включить уведомления»
+      const enablePushBtn = container.querySelector('#enablePushBtn');
+      if (enablePushBtn) {
+        enablePushBtn.addEventListener('click', async () => {
+          enablePushBtn.disabled = true;
+          enablePushBtn.textContent = 'Подключаем...';
+          await requestPushPermission();
+          // Убираем кнопку после нажатия
+          enablePushBtn.remove();
+        });
+      }
+
       // Вкладка «Мастер»
       const roleMasterBtn = container.querySelector('#roleMaster');
       if (roleMasterBtn) {
@@ -3194,28 +3212,67 @@ function renderSuperAdminPanel() {
 let _notifInterval = null;
 
 // --- Web Push ---
+// Проверяем: iOS в браузере (не PWA) — push не поддерживается
+function isIosInBrowser() {
+  const ua = navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isInPwa = window.navigator.standalone === true;
+  return isIos && !isInPwa;
+}
+
 async function requestPushPermission() {
   const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-  if (!auth || !auth.access_token) return; // нужен JWT (веб-логин или мастер-логин)
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  if (Notification.permission === 'denied') return;
+  if (!auth || !auth.access_token) {
+    console.log('Push: нет JWT, пропускаем');
+    return;
+  }
+
+  // iOS в браузере — PushManager недоступен, показываем подсказку
+  if (isIosInBrowser()) {
+    showIosPwaHint();
+    return;
+  }
+
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('Push: браузер не поддерживает push');
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    console.log('Push: пользователь заблокировал уведомления');
+    return;
+  }
+
+  // Уже подписаны — не просим повторно
+  if (Notification.permission === 'granted') {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        console.log('Push: уже подписан');
+        return;
+      }
+    } catch(e) { /* продолжаем */ }
+  }
 
   try {
     const permission = await Notification.requestPermission();
+    console.log('Push permission:', permission);
     if (permission !== 'granted') return;
 
     const reg = await navigator.serviceWorker.ready;
 
     const keyRes = await fetch(`${API_BASE_URL}/api/v1/push/vapid-key`);
-    const { publicKey } = await keyRes.json();
-    if (!publicKey) return;
+    const keyData = await keyRes.json();
+    const publicKey = keyData.publicKey;
+    if (!publicKey) { console.warn('Push: нет VAPID ключа'); return; }
 
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey),
     });
 
-    await fetch(`${API_BASE_URL}/api/v1/push/subscribe`, {
+    const subRes = await fetch(`${API_BASE_URL}/api/v1/push/subscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3223,10 +3280,33 @@ async function requestPushPermission() {
       },
       body: JSON.stringify(sub.toJSON()),
     });
-    console.log('Push subscription saved');
+    if (subRes.ok) {
+      console.log('Push subscription saved');
+    } else {
+      const err = await subRes.text();
+      console.warn('Push subscribe failed:', err);
+    }
   } catch (err) {
     console.warn('Push subscription error:', err.message);
   }
+}
+
+function showIosPwaHint() {
+  if (document.getElementById('iosPwaHint')) return;
+  if (localStorage.getItem('iosPwaHintDismissed')) return;
+  const banner = document.createElement('div');
+  banner.id = 'iosPwaHint';
+  banner.style.cssText = 'position:fixed;bottom:80px;left:12px;right:12px;background:#1a1a2e;color:#fff;border-radius:14px;padding:14px 16px;z-index:9999;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,0.4);display:flex;gap:12px;align-items:flex-start';
+  banner.innerHTML = `
+    <div style="font-size:22px;flex-shrink:0">📲</div>
+    <div style="flex:1">
+      <div style="font-weight:600;margin-bottom:4px">Включите уведомления</div>
+      <div style="opacity:0.85;line-height:1.4">Нажмите <b>Поделиться</b> → <b>На экран Домой</b> — и уведомления заработают</div>
+    </div>
+    <button onclick="localStorage.setItem('iosPwaHintDismissed','1');document.getElementById('iosPwaHint').remove()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:0;line-height:1">×</button>
+  `;
+  document.body.appendChild(banner);
+  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 15000);
 }
 
 function urlBase64ToUint8Array(base64String) {
