@@ -1837,9 +1837,25 @@ function bindEvents(screenName, container) {
       if (loginBtn && codeInput) {
         const tryLogin = async () => {
           if (codeInput.value === MASTER_CODE) {
+            // Получаем JWT для мастера → фото, уведомления и push заработают
+            try {
+              const res = await fetch(`${API_BASE_URL}/api/v1/auth/master-code-login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ master_id: CURRENT_MASTER_ID, code: codeInput.value }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.ok && typeof saveAuth === 'function') saveAuth(data);
+              }
+            } catch(e) { console.warn('master-code-login error:', e.message); }
+
             state.masterUnlocked = true;
             state.masterTab = 'bookings';
             haptic('notification', 'success');
+            // Запускаем колокольчик и push после получения JWT
+            createNotificationBell();
+            requestPushPermission();
             await loadMasterTabData('bookings');
             navigateTo('masterPanel');
           } else {
@@ -3124,9 +3140,10 @@ let _notifInterval = null;
 
 // --- Web Push ---
 async function requestPushPermission() {
-  const user = getCurrentUser();
-  if (!user || !user.phone) return;
+  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+  if (!auth || !auth.access_token) return; // нужен JWT (веб-логин или мастер-логин)
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (Notification.permission === 'denied') return;
 
   try {
     const permission = await Notification.requestPermission();
@@ -3134,20 +3151,14 @@ async function requestPushPermission() {
 
     const reg = await navigator.serviceWorker.ready;
 
-    // Получаем VAPID public key с сервера
     const keyRes = await fetch(`${API_BASE_URL}/api/v1/push/vapid-key`);
     const { publicKey } = await keyRes.json();
     if (!publicKey) return;
 
-    // Подписываемся
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey),
     });
-
-    // Отправляем подписку на сервер
-    const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-    if (!auth) return;
 
     await fetch(`${API_BASE_URL}/api/v1/push/subscribe`, {
       method: 'POST',
