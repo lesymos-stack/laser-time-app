@@ -123,16 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { CLIENT_BONUS = 0; }
       }
 
-      // Автовход мастера — если телефон совпадает
-      if (currentUser && currentUser.phone && MASTER && MASTER.phone) {
-        const userPhone = currentUser.phone.replace(/\D/g, '');
-        const masterPhone = MASTER.phone.replace(/\D/g, '');
-        if (userPhone.length >= 10 && masterPhone.length >= 10 &&
-            (userPhone === masterPhone || userPhone.endsWith(masterPhone.slice(-10)) || masterPhone.endsWith(userPhone.slice(-10)))) {
-          state.masterUnlocked = true;
-          console.log('🔓 Мастер авторизован по телефону');
-        }
-      }
+      // Автовход мастера отключён — требуется ввод кода при каждом визите
 
       console.log('✅ Данные загружены');
     } else {
@@ -236,6 +227,11 @@ function navigateTo(screenName, pushHistory = true) {
 
   if (pushHistory && state.currentScreen) {
     state.screenHistory.push(state.currentScreen);
+  }
+
+  // При переходе на home — всегда сбрасываем флаг мастера
+  if (screenName === 'home') {
+    state.masterUnlocked = false;
   }
 
   state.currentScreen = screenName;
