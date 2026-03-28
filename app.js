@@ -189,8 +189,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
   } else {
-    renderScreen('home');
-    showOfferIfNeeded();
+    // Если вошедший пользователь — владелец этого профиля мастера,
+    // сразу предлагаем ввести код мастера
+    const curUser = getCurrentUser();
+    const isMasterOwner = curUser && curUser.phone && MASTER && MASTER.phone &&
+      curUser.phone.replace(/\D/g, '').slice(-10) === MASTER.phone.replace(/\D/g, '').slice(-10);
+    if (isMasterOwner && !state.masterUnlocked) {
+      navigateTo('masterLogin');
+    } else {
+      renderScreen('home');
+      showOfferIfNeeded();
+    }
   }
 });
 
