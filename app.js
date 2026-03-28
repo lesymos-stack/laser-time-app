@@ -1007,9 +1007,17 @@ function renderCategoryForm() {
   const isEdit = !!c;
   const title = isEdit ? 'Редактировать категорию' : 'Новая категория';
 
+  const currentPhoto = isEdit && c.photo_url ? `<div class="admin-cat-photo-preview"><img src="${c.photo_url}" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;margin-bottom:8px;"></div>` : '';
+
   return `
     <div class="admin-form">
       <div class="master-section-title">${title}</div>
+
+      <label class="admin-label">Фото категории</label>
+      ${currentPhoto}
+      <label class="admin-upload-btn" for="catPhotoInput">+ Загрузить фото</label>
+      <input type="file" id="catPhotoInput" accept="image/*" style="display:none">
+      <div id="catPhotoPreview" style="margin-top:6px;font-size:13px;color:var(--tg-theme-hint-color)"></div>
 
       <label class="admin-label">Иконка (эмодзи)</label>
       <input class="admin-input" id="catIcon" value="${isEdit ? (c.icon || '') : '✨'}" placeholder="✨">
@@ -2051,7 +2059,10 @@ function bindEvents(screenName, container) {
       // Вкладка «Клиент»
       const roleClientBtn = container.querySelector('#roleClientFromMaster');
       if (roleClientBtn) {
-        roleClientBtn.addEventListener('click', () => navigateTo('home'));
+        roleClientBtn.addEventListener('click', () => {
+          state.masterUnlocked = false;
+          navigateTo('home');
+        });
       }
 
       // Вкладки админки
@@ -2605,6 +2616,16 @@ function bindEvents(screenName, container) {
       });
 
       // --- Форма категории: сохранить ---
+      // Превью выбранного фото категории
+      const catPhotoInput = container.querySelector('#catPhotoInput');
+      const catPhotoPreview = container.querySelector('#catPhotoPreview');
+      if (catPhotoInput && catPhotoPreview) {
+        catPhotoInput.addEventListener('change', () => {
+          const file = catPhotoInput.files[0];
+          catPhotoPreview.textContent = file ? `Выбрано: ${file.name}` : '';
+        });
+      }
+
       const saveCatBtn = container.querySelector('#saveCategoryBtn');
       if (saveCatBtn) {
         saveCatBtn.addEventListener('click', async () => {
@@ -2620,12 +2641,43 @@ function bindEvents(screenName, container) {
           saveCatBtn.disabled = true;
           saveCatBtn.textContent = 'Сохраняем...';
 
+          // Загружаем фото если выбрано
+          let photoUrl = state.editingCategory?.photo_url || null;
+          const photoFile = container.querySelector('#catPhotoInput')?.files[0];
+          if (photoFile) {
+            try {
+              const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+              const formData = new FormData();
+              formData.append('photo', photoFile);
+              const uploadRes = await fetch(`${API_BASE_URL}/api/v1/upload/${CURRENT_MASTER_ID}`, {
+                method: 'POST',
+                headers: auth ? { 'Authorization': `Bearer ${auth.access_token}` } : {},
+                body: formData,
+              });
+              if (uploadRes.ok) {
+                const uploadData = await uploadRes.json();
+                photoUrl = uploadData.url;
+              } else {
+                alert('Ошибка загрузки фото');
+                saveCatBtn.disabled = false;
+                saveCatBtn.textContent = state.editingCategory ? 'Сохранить' : 'Создать категорию';
+                return;
+              }
+            } catch(e) {
+              alert('Ошибка загрузки фото: ' + e.message);
+              saveCatBtn.disabled = false;
+              saveCatBtn.textContent = state.editingCategory ? 'Сохранить' : 'Создать категорию';
+              return;
+            }
+          }
+
           const data = {
             master_id: CURRENT_MASTER_ID,
             name,
             icon,
             sort_order: sortOrder,
             is_active: true,
+            photo_url: photoUrl,
           };
 
           if (state.editingCategory?.id) {
