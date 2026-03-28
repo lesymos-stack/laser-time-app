@@ -155,8 +155,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Создаём колокольчик уведомлений
   createNotificationBell();
 
-  // Запрашиваем разрешение на push-уведомления
-  requestPushPermission();
+  // Push запрашивается при первом нажатии "Начать" (нужен жест пользователя)
+  // Для повторных визитов — запрашиваем сразу если уже был онбординг
+  if (localStorage.getItem('onboardingDone')) requestPushPermission();
 
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
@@ -2949,7 +2950,7 @@ function showOnboarding() {
     <div class="onboarding-screen">
       <div class="onboarding-emoji">✨</div>
       <div class="onboarding-title">${greeting}</div>
-      <div class="onboarding-subtitle">Добро пожаловать в Лазер Тайм</div>
+      <div class="onboarding-subtitle">Добро пожаловать в ${MASTER?.name || 'Beauty Platform'}</div>
       <ul class="onboarding-list">
         <li>Выбирайте услуги из каталога и записывайтесь онлайн</li>
         <li>Копите бонусы — 3% с каждого визита</li>
@@ -2961,7 +2962,7 @@ function showOnboarding() {
 
   document.getElementById('onboardingStartBtn').addEventListener('click', () => {
     localStorage.setItem('onboardingDone', '1');
-    // Очищаем онбординг перед показом главного экрана
+    requestPushPermission(); // вызываем здесь — браузер требует действия пользователя
     document.getElementById('app').innerHTML = '';
     renderScreen('home');
     showOfferIfNeeded();
