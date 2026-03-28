@@ -3011,7 +3011,7 @@ function renderRegisterMaster() {
         <input type="text" id="regName" class="login-input" placeholder="Студия Анны" style="width:100%" />
 
         <label class="login-label" style="margin-top:12px">Телефон</label>
-        <input type="tel" id="regPhone" class="login-input" value="${phone}" style="width:100%" readonly />
+        <input type="tel" id="regPhone" class="login-input" value="${phone}" placeholder="+79001234567" style="width:100%" />
 
         <label class="login-label" style="margin-top:12px">Описание</label>
         <textarea id="regDescription" class="login-input" rows="3" placeholder="Кратко опишите ваши услуги" style="width:100%;resize:vertical"></textarea>
