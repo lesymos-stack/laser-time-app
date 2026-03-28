@@ -130,6 +130,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('⚠️ Ошибка загрузки, используем локальные данные:', err);
   }
 
+  // Проверяем URL-параметр ?page= ДО проверки авторизации
+  const pageParam = new URLSearchParams(window.location.search).get('page');
+  if (pageParam === 'register') {
+    renderScreen('register');
+    return;
+  }
+  if (pageParam === 'superadmin') {
+    renderScreen('superadmin');
+    return;
+  }
+
   // Запускаем приложение
   // Веб-пользователь без авторизации — показываем логин
   if (!tg && !getCurrentUser() && typeof renderLoginScreen === 'function') {
@@ -146,17 +157,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Запрашиваем разрешение на push-уведомления
   requestPushPermission();
-
-  // Проверяем URL-параметр ?page=
-  const pageParam = new URLSearchParams(window.location.search).get('page');
-  if (pageParam === 'register') {
-    renderScreen('register');
-    return;
-  }
-  if (pageParam === 'superadmin') {
-    renderScreen('superadmin');
-    return;
-  }
 
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
