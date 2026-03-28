@@ -155,10 +155,9 @@ async function loadMaster(identifier) {
     return masters && masters[0] ? masters[0] : null;
   }
 
-  // Fallback — первый активный мастер
-  console.warn('Нет параметра ?bot= или ?master= в URL, используем первого мастера');
-  const masters = await API.fetch('masters', 'is_active=eq.true&limit=1');
-  return masters && masters[0] ? masters[0] : null;
+  // Нет параметра — мастер не определён, возвращаем null
+  console.warn('Нет параметра ?bot= или ?master= в URL');
+  return null;
 }
 
 

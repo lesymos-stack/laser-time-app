@@ -136,7 +136,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       console.log('✅ Данные загружены');
     } else {
-      console.warn('⚠️ API недоступен, используем локальные данные');
+      // Мастер не найден — нет ?master= в URL, показываем лендинг платформы
+      document.getElementById('app').innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;text-align:center;background:#f8f8f8">
+          <div style="font-size:56px;margin-bottom:16px">💆‍♀️</div>
+          <div style="font-size:24px;font-weight:700;margin-bottom:8px;color:#1a1a1a">Beauty Platform</div>
+          <div style="font-size:15px;color:#666;margin-bottom:32px;line-height:1.5">Онлайн-запись к мастерам красоты.<br>Введите ссылку вашего мастера.</div>
+          <div style="width:100%;max-width:360px">
+            <div style="font-size:13px;color:#999;margin-bottom:8px;text-align:left">Ссылка мастера</div>
+            <input id="masterSlugInput" type="text" placeholder="anna-laser" style="width:100%;box-sizing:border-box;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;font-size:16px;outline:none;margin-bottom:4px">
+            <div style="font-size:12px;color:#aaa;margin-bottom:16px;text-align:left">app.beautyplatform.ru/?master=<b id="slugHint">...</b></div>
+            <button onclick="(function(){const v=document.getElementById('masterSlugInput').value.trim();if(v)window.location.href='/?master='+v;})()" style="width:100%;padding:16px;background:#2196F3;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer">Открыть</button>
+            <div style="margin-top:24px;padding-top:24px;border-top:1px solid #e0e0e0">
+              <div style="font-size:13px;color:#999;margin-bottom:12px">Вы мастер?</div>
+              <a href="/?page=register" style="display:inline-block;padding:12px 24px;border:2px solid #2196F3;color:#2196F3;border-radius:12px;font-size:15px;font-weight:600;text-decoration:none">Зарегистрироваться</a>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('masterSlugInput').addEventListener('input', function(){
+        document.getElementById('slugHint').textContent = this.value || '...';
+      });
+      document.getElementById('masterSlugInput').addEventListener('keydown', function(e){
+        if (e.key === 'Enter') { const v = this.value.trim(); if(v) window.location.href = '/?master=' + v; }
+      });
+      return;
     }
   } catch (err) {
     console.warn('⚠️ Ошибка загрузки, используем локальные данные:', err);
