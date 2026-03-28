@@ -1952,11 +1952,13 @@ function bindEvents(screenName, container) {
             });
             const data = await res.json();
             if (res.ok) {
+              const masterUrl = `https://app.beautyplatform.ru/?master=${slug}`;
               if (resultDiv) resultDiv.innerHTML = `<span style="color:green">
   ✅ Мастер зарегистрирован!<br><br>
-  🔗 Ссылка: <b>app.beautyplatform.ru/?master=${slug}</b><br><br>
+  🔗 Ссылка:<br>
+  <a href="${masterUrl}" target="_blank" style="display:inline-block;margin:8px 0;padding:12px 18px;background:#2196F3;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;word-break:break-all">${masterUrl}</a><br><br>
   🔐 Код доступа в кабинет мастера: <b style="font-size:20px">${data.master_code}</b><br><br>
-  <small>Откройте свою ссылку → вкладка "Мастер" → введите код</small>
+  <small>Нажмите на ссылку выше → вкладка "Мастер" → введите код</small>
 </span>`;
               regSubmitBtn.textContent = 'Зарегистрирован';
             } else {
