@@ -77,6 +77,18 @@ const TAB_MAP = {
 // Запуск при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
   initTelegram();
+
+  // Проверяем ?page= ДО любых загрузок — для быстрого открытия спецстраниц
+  const pageParamEarly = new URLSearchParams(window.location.search).get('page');
+  if (pageParamEarly === 'register') {
+    renderScreen('register');
+    return;
+  }
+  if (pageParamEarly === 'superadmin') {
+    renderScreen('superadmin');
+    return;
+  }
+
   createTabBar();
 
   // Показываем skeleton пока грузим данные
