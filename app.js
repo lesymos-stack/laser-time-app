@@ -1930,7 +1930,8 @@ function bindEvents(screenName, container) {
               if (resultDiv) resultDiv.innerHTML = `<span style="color:green">
   ✅ Мастер зарегистрирован!<br><br>
   🔗 Ссылка: <b>app.beautyplatform.ru/?master=${slug}</b><br><br>
-  🔐 Вход в кабинет: откройте свою ссылку и войдите по номеру телефона <b>${container.querySelector('#regPhone')?.value || ''}</b>
+  🔐 Код доступа в кабинет мастера: <b style="font-size:20px">${data.master_code}</b><br><br>
+  <small>Откройте свою ссылку → вкладка "Мастер" → введите код</small>
 </span>`;
               regSubmitBtn.textContent = 'Зарегистрирован';
             } else {
