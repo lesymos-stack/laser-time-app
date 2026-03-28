@@ -3078,7 +3078,7 @@ function renderSuperAdminPanel() {
           ${m.slug ? '<a href="/?master=' + m.slug + '" target="_blank" class="sadmin-link">/' + m.slug + '</a>' : ''}
           ${m.bot_username ? ' · @' + m.bot_username : ''}
         </div>
-        <div class="sadmin-master-status">${m.is_active ? '✅ Активен' : '⏸ Пауза'}</div>
+        <div class="sadmin-master-status">${m.is_active ? '✅ Активен' : '⏸ Пауза'} · 🔐 Код: <b>${m.master_code || '—'}</b></div>
       </div>
       <div class="sadmin-master-actions">
         <button class="sadmin-btn ${m.is_active ? 'pause' : 'resume'}" data-master-id="${m.id}" data-active="${m.is_active}">
