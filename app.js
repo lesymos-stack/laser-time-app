@@ -1927,7 +1927,11 @@ function bindEvents(screenName, container) {
             });
             const data = await res.json();
             if (res.ok) {
-              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Готово! Ваша ссылка: <b>app.beautyplatform.ru/?master=${slug}</b></span>`;
+              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">
+  ✅ Мастер зарегистрирован!<br><br>
+  🔗 Ссылка: <b>app.beautyplatform.ru/?master=${slug}</b><br><br>
+  🔐 Вход в кабинет: откройте свою ссылку и войдите по номеру телефона <b>${container.querySelector('#regPhone')?.value || ''}</b>
+</span>`;
               regSubmitBtn.textContent = 'Зарегистрирован';
             } else {
               if (resultDiv) resultDiv.innerHTML = `<span style="color:red">${data.error || 'Ошибка регистрации'}</span>`;
