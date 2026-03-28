@@ -1927,7 +1927,7 @@ function bindEvents(screenName, container) {
             });
             const data = await res.json();
             if (res.ok) {
-              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Готово! Ваша ссылка: <b>beautyplatform.ru/?master=${slug}</b></span>`;
+              if (resultDiv) resultDiv.innerHTML = `<span style="color:green">Готово! Ваша ссылка: <b>app.beautyplatform.ru/?master=${slug}</b></span>`;
               regSubmitBtn.textContent = 'Зарегистрирован';
             } else {
               if (resultDiv) resultDiv.innerHTML = `<span style="color:red">${data.error || 'Ошибка регистрации'}</span>`;
@@ -3019,7 +3019,7 @@ function renderRegisterMaster() {
         <label class="login-label" style="margin-top:12px">Адрес страницы *</label>
         <input type="text" id="regSlug" class="login-input" placeholder="anna-laser" style="width:100%" />
         <div style="font-size:12px;color:var(--tg-theme-hint-color,#999);margin-top:4px">
-          Ваша ссылка: laser-time-app.vercel.app/?master=<span id="slugPreview">...</span>
+          Ваша ссылка: app.beautyplatform.ru/?master=<span id="slugPreview">...</span>
         </div>
         <div style="font-size:11px;color:var(--tg-theme-hint-color,#aaa);margin-top:2px">Только латинские буквы, цифры и дефис. Можно изменить.</div>
 
