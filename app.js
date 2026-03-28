@@ -3418,17 +3418,23 @@ async function toggleNotificationPanel() {
       list.innerHTML = '<div class="notif-empty">Нет уведомлений</div>';
     } else {
       list.innerHTML = notifs.map(n => {
-        const isReminder = n.type === 'reminder' && n.booking_id;
-        const actions = isReminder ? `
+        // Кнопки только клиенту (booking_confirmed, reminder) — не мастеру (new_booking)
+        const hasActions = (n.type === 'booking_confirmed' || n.type === 'reminder') && n.booking_id;
+        const actions = hasActions ? `
           <div class="notif-actions" data-booking-id="${n.booking_id}" data-notif-id="${n.id}">
             <button class="notif-action-btn confirm" data-action="confirmed">Подтвердить</button>
             <button class="notif-action-btn cancel" data-action="cancelled">Отменить</button>
             <button class="notif-action-btn reschedule" data-action="reschedule">Перенести</button>
           </div>` : '';
+        // Исправляем дату если она в GMT-формате (баг старых записей)
+        const body = (n.body || '').replace(
+          /\w{3} \w{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+\-]\d{4} \([^)]+\)/g,
+          (m) => { try { const d = new Date(m); return `${String(d.getUTCDate()).padStart(2,'0')}.${String(d.getUTCMonth()+1).padStart(2,'0')}.${d.getUTCFullYear()}`; } catch(e) { return m; } }
+        );
         return `
           <div class="notification-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
             <div class="notif-title">${escapeHtml(n.title)}</div>
-            <div class="notif-body">${escapeHtml(n.body)}</div>
+            <div class="notif-body">${escapeHtml(body)}</div>
             ${actions}
             <div class="notif-time">${formatNotifTime(n.created_at)}</div>
           </div>`;
