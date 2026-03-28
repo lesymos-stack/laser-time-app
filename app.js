@@ -1923,7 +1923,7 @@ function bindEvents(screenName, container) {
                 'Content-Type': 'application/json',
                 'Authorization': auth ? `Bearer ${auth.access_token}` : '',
               },
-              body: JSON.stringify({ name, slug, description }),
+              body: JSON.stringify({ name, slug, description, phone: container.querySelector('#regPhone')?.value.trim() }),
             });
             const data = await res.json();
             if (res.ok) {
