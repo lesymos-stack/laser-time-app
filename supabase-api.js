@@ -17,21 +17,31 @@ const API = {
   url: API_BASE_URL,  // из config.js
   key: API_KEY,       // из config.js
 
-  // Базовый GET-запрос
+  // Базовый GET-запрос (с таймаутом 10 сек)
   async fetch(table, query = '') {
-    const response = await fetch(`${this.url}/api/v1/${table}?${query}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': this.key,
-      },
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(`${this.url}/api/v1/${table}?${query}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': this.key,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
 
-    if (!response.ok) {
-      console.error(`API error: ${response.status} ${response.statusText}`);
-      return null;
+      if (!response.ok) {
+        console.error(`API error: ${response.status} ${response.statusText}`);
+        return null;
+      }
+
+      return response.json();
+    } catch (e) {
+      clearTimeout(timer);
+      console.error('API fetch failed:', e.message);
+      throw e;
     }
-
-    return response.json();
   },
 
   // POST-запрос (для создания записей)

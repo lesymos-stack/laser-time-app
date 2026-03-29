@@ -99,9 +99,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     </div>
   `;
 
-  // Пытаемся загрузить данные из Supabase
+  // Пытаемся загрузить данные с таймаутом 15 секунд
   try {
-    const data = await loadAllData();
+    const dataPromise = loadAllData();
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000));
+    const data = await Promise.race([dataPromise, timeoutPromise]);
     if (data) {
       // Перезаписываем глобальные переменные данными из базы
       MASTER = data.master;
@@ -154,7 +156,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
   } catch (err) {
-    console.warn('⚠️ Ошибка загрузки, используем локальные данные:', err);
+    console.error('Ошибка загрузки:', err);
+    document.getElementById('app').innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;text-align:center">
+        <div style="font-size:48px;margin-bottom:16px">😔</div>
+        <div style="font-size:18px;font-weight:600;margin-bottom:8px;color:#1a1a1a">Не удалось загрузить</div>
+        <div style="font-size:14px;color:#888;margin-bottom:24px;line-height:1.5">Проверьте интернет-соединение<br>и попробуйте ещё раз</div>
+        <button onclick="location.reload()" style="padding:14px 32px;background:#2196F3;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer">Повторить</button>
+        <div style="margin-top:16px;font-size:12px;color:#ccc">${err.message || 'unknown error'}</div>
+      </div>
+    `;
+    return;
   }
 
   // Проверяем URL-параметр ?page= ДО проверки авторизации
