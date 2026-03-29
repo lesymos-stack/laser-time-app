@@ -124,34 +124,61 @@ function renderLoginScreen() {
     <div class="login-screen">
       <div class="login-logo">💆‍♀️</div>
       <div class="login-title">Beauty Platform</div>
-      <div class="login-subtitle">Войдите, чтобы записаться на услуги</div>
 
-      <div id="loginStep1">
+      <div class="role-tabs" style="margin-bottom:20px">
+        <button class="role-tab active" id="loginTabClient">Клиент</button>
+        <button class="role-tab" id="loginTabMaster">Мастер</button>
+      </div>
+
+      <!-- Вход клиента (по звонку) -->
+      <div id="clientLoginBlock">
+        <div class="login-subtitle">Войдите, чтобы записаться на услуги</div>
+
+        <div id="loginStep1">
+          <div class="login-input-group">
+            <label class="login-label">Номер телефона</label>
+            <div class="login-phone-row">
+              <span class="login-phone-prefix">+7</span>
+              <input type="tel" id="loginPhone" class="login-input" placeholder="(___) ___-__-__" maxlength="15" autocomplete="tel" />
+            </div>
+          </div>
+          <button class="login-btn" id="sendCodeBtn">Позвонить мне</button>
+          <div id="loginError" class="login-error"></div>
+        </div>
+
+        <div id="loginStep2" style="display:none">
+          <div class="login-hint">Вам звонят на <b id="loginPhoneDisplay"></b><br>Введите последние 4 цифры входящего номера</div>
+          <div class="login-code-inputs" id="codeInputs">
+            <input type="tel" class="login-code-digit" maxlength="1" data-idx="0" autocomplete="one-time-code" />
+            <input type="tel" class="login-code-digit" maxlength="1" data-idx="1" />
+            <input type="tel" class="login-code-digit" maxlength="1" data-idx="2" />
+            <input type="tel" class="login-code-digit" maxlength="1" data-idx="3" />
+          </div>
+          <div id="verifyError" class="login-error"></div>
+          <div class="login-resend" id="resendBlock">
+            <span id="resendTimer"></span>
+            <button class="login-resend-btn" id="resendBtn" style="display:none">Позвонить повторно</button>
+          </div>
+          <button class="login-back-link" id="changePhoneBtn">Изменить номер</button>
+        </div>
+      </div>
+
+      <!-- Вход мастера (телефон + код, без звонка) -->
+      <div id="masterLoginBlock" style="display:none">
+        <div class="login-subtitle">Войдите по номеру телефона и коду доступа</div>
         <div class="login-input-group">
           <label class="login-label">Номер телефона</label>
           <div class="login-phone-row">
             <span class="login-phone-prefix">+7</span>
-            <input type="tel" id="loginPhone" class="login-input" placeholder="(___) ___-__-__" maxlength="15" autocomplete="tel" />
+            <input type="tel" id="masterLoginPhone" class="login-input" placeholder="(___) ___-__-__" maxlength="15" />
           </div>
         </div>
-        <button class="login-btn" id="sendCodeBtn">Позвонить мне</button>
-        <div id="loginError" class="login-error"></div>
-      </div>
-
-      <div id="loginStep2" style="display:none">
-        <div class="login-hint">Вам звонят на <b id="loginPhoneDisplay"></b><br>Введите последние 4 цифры входящего номера</div>
-        <div class="login-code-inputs" id="codeInputs">
-          <input type="tel" class="login-code-digit" maxlength="1" data-idx="0" autocomplete="one-time-code" />
-          <input type="tel" class="login-code-digit" maxlength="1" data-idx="1" />
-          <input type="tel" class="login-code-digit" maxlength="1" data-idx="2" />
-          <input type="tel" class="login-code-digit" maxlength="1" data-idx="3" />
+        <div class="login-input-group" style="margin-top:12px">
+          <label class="login-label">Код доступа</label>
+          <input type="password" id="masterLoginCode" class="login-input" placeholder="Код из регистрации" maxlength="10" inputmode="numeric" style="padding:14px 16px" />
         </div>
-        <div id="verifyError" class="login-error"></div>
-        <div class="login-resend" id="resendBlock">
-          <span id="resendTimer"></span>
-          <button class="login-resend-btn" id="resendBtn" style="display:none">Позвонить повторно</button>
-        </div>
-        <button class="login-back-link" id="changePhoneBtn">Изменить номер</button>
+        <button class="login-btn" id="masterLoginBtn2" style="margin-top:16px">Войти</button>
+        <div id="masterLoginError" class="login-error"></div>
       </div>
     </div>
   `;
@@ -289,5 +316,91 @@ function initLoginHandlers(onSuccess) {
         resendTimer.textContent = `Повторная отправка через ${seconds} сек.`;
       }
     }, 1000);
+  }
+
+  // --- Переключение вкладок Клиент / Мастер ---
+  const tabClient = document.getElementById('loginTabClient');
+  const tabMaster = document.getElementById('loginTabMaster');
+  const clientBlock = document.getElementById('clientLoginBlock');
+  const masterBlock = document.getElementById('masterLoginBlock');
+
+  if (tabClient && tabMaster && clientBlock && masterBlock) {
+    tabClient.addEventListener('click', () => {
+      tabClient.classList.add('active');
+      tabMaster.classList.remove('active');
+      clientBlock.style.display = '';
+      masterBlock.style.display = 'none';
+    });
+    tabMaster.addEventListener('click', () => {
+      tabMaster.classList.add('active');
+      tabClient.classList.remove('active');
+      clientBlock.style.display = 'none';
+      masterBlock.style.display = '';
+      const mp = document.getElementById('masterLoginPhone');
+      if (mp) setTimeout(() => mp.focus(), 200);
+    });
+  }
+
+  // --- Маска телефона для мастера ---
+  const masterPhone = document.getElementById('masterLoginPhone');
+  if (masterPhone) {
+    masterPhone.addEventListener('input', () => {
+      let val = masterPhone.value.replace(/\D/g, '');
+      if (val.length > 10) val = val.slice(0, 10);
+      let f = '';
+      if (val.length > 0) f += '(' + val.slice(0, 3);
+      if (val.length >= 3) f += ') ' + val.slice(3, 6);
+      if (val.length >= 6) f += '-' + val.slice(6, 8);
+      if (val.length >= 8) f += '-' + val.slice(8, 10);
+      masterPhone.value = f;
+    });
+  }
+
+  // --- Вход мастера по телефону + коду ---
+  const masterBtn2 = document.getElementById('masterLoginBtn2');
+  const masterCode2 = document.getElementById('masterLoginCode');
+  const masterErr = document.getElementById('masterLoginError');
+
+  if (masterBtn2 && masterCode2 && masterPhone) {
+    const tryMasterLogin = async () => {
+      const rawPhone = masterPhone.value.replace(/\D/g, '');
+      const code = masterCode2.value.trim();
+      if (rawPhone.length !== 10) {
+        masterErr.textContent = 'Введите 10 цифр номера';
+        return;
+      }
+      if (!code) {
+        masterErr.textContent = 'Введите код доступа';
+        return;
+      }
+      masterErr.textContent = '';
+      masterBtn2.disabled = true;
+      masterBtn2.textContent = 'Проверяем...';
+
+      try {
+        const phone = '+7' + rawPhone;
+        const API = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '';
+        const res = await fetch(`${API}/api/v1/auth/master-phone-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, code }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          if (typeof saveAuth === 'function') saveAuth(data);
+          onSuccess(data.user || { phone, source: 'web' });
+        } else {
+          masterErr.textContent = data.error || 'Неверный телефон или код';
+        }
+      } catch(e) {
+        masterErr.textContent = 'Ошибка соединения';
+      }
+      masterBtn2.disabled = false;
+      masterBtn2.textContent = 'Войти';
+    };
+    masterBtn2.addEventListener('click', tryMasterLogin);
+    masterCode2.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') tryMasterLogin();
+    });
   }
 }

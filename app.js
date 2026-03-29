@@ -169,11 +169,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Запускаем приложение
-  // Веб-пользователь без авторизации — показываем логин
+  // Веб-пользователь без авторизации — показываем логин клиента
+  // Но если телефон мастера совпадёт — мастер войдёт через masterLogin без звонка
   if (!tg && !getCurrentUser() && typeof renderLoginScreen === 'function') {
+    // Показываем экран с вкладками Клиент/Мастер
+    // Мастер сможет переключиться и войти по телефону + коду без звонка
     document.getElementById('app').innerHTML = renderLoginScreen();
     initLoginHandlers((user) => {
-      // Успешный вход — перезагружаем
       location.reload();
     });
     return;
@@ -594,6 +596,7 @@ function renderAbonement() {
 // ============================================================
 
 function renderMasterLogin() {
+  const isLoggedIn = !!getCurrentUser();
   return `
     <div class="history-screen">
       <div class="role-tabs">
@@ -604,9 +607,14 @@ function renderMasterLogin() {
       <div class="master-login">
         <div class="master-login-icon">🔒</div>
         <div class="master-login-title">Вход для мастера</div>
-        <div class="master-login-hint">Введите код доступа</div>
+        ${!isLoggedIn ? `
+          <div class="master-login-hint">Введите номер телефона и код доступа</div>
+          <input type="tel" class="master-login-input" id="masterPhoneInput" placeholder="Номер телефона" style="margin-bottom:12px">
+        ` : `
+          <div class="master-login-hint">Введите код доступа</div>
+        `}
         <input type="password" class="master-login-input" id="masterCodeInput" maxlength="10" placeholder="Код доступа" inputmode="numeric">
-        <div class="master-login-error hidden" id="masterLoginError">Неверный код доступа</div>
+        <div class="master-login-error hidden" id="masterLoginError">Неверный телефон или код</div>
         <button class="master-login-btn" id="masterLoginBtn">Войти</button>
       </div>
     </div>
@@ -1900,10 +1908,24 @@ function bindEvents(screenName, container) {
       // Кнопка «Войти»
       const loginBtn = container.querySelector('#masterLoginBtn');
       const codeInput = container.querySelector('#masterCodeInput');
+      const phoneInput = container.querySelector('#masterPhoneInput');
       const loginError = container.querySelector('#masterLoginError');
 
       if (loginBtn && codeInput) {
         const tryLogin = async () => {
+          // Если мастер не залогинен — проверяем телефон
+          if (phoneInput) {
+            const enteredPhone = phoneInput.value.replace(/\D/g, '').slice(-10);
+            const masterPhone = (MASTER && MASTER.phone || '').replace(/\D/g, '').slice(-10);
+            if (!enteredPhone || enteredPhone !== masterPhone) {
+              loginError.textContent = 'Неверный телефон или код';
+              loginError.classList.remove('hidden');
+              phoneInput.focus();
+              haptic('notification', 'error');
+              return;
+            }
+          }
+
           if (codeInput.value === MASTER_CODE) {
             // Получаем JWT для мастера → фото, уведомления и push заработают
             try {
@@ -1927,6 +1949,7 @@ function bindEvents(screenName, container) {
             await loadMasterTabData('bookings');
             navigateTo('masterPanel');
           } else {
+            loginError.textContent = 'Неверный код доступа';
             loginError.classList.remove('hidden');
             codeInput.value = '';
             codeInput.focus();
@@ -1937,8 +1960,13 @@ function bindEvents(screenName, container) {
         codeInput.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') tryLogin();
         });
-        // Автофокус на поле ввода
-        setTimeout(() => codeInput.focus(), 300);
+        if (phoneInput) {
+          phoneInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') codeInput.focus();
+          });
+        }
+        // Автофокус на первое поле
+        setTimeout(() => (phoneInput || codeInput).focus(), 300);
       }
 
       // Вкладка «Клиент» из экрана входа
