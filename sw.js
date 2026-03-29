@@ -1,5 +1,5 @@
 // Service Worker — Beauty Platform PWA
-const CACHE_NAME = 'beauty-v12';
+const CACHE_NAME = 'beauty-v13';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -36,31 +36,31 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch — network first for API, cache first for static
+// Fetch — network first for all, fallback to cache (offline)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // API calls — always network, no cache
+  // API calls and external — skip SW
   if (url.pathname.startsWith('/api/') || url.hostname !== self.location.hostname) {
     return;
   }
 
-  // Static assets — cache first, then network
+  // Network first — всегда пытаемся получить свежую версию
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      });
-    }).catch(() => {
-      // Offline fallback
-      if (event.request.mode === 'navigate') {
-        return caches.match('/index.html');
+    fetch(event.request).then((response) => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
       }
+      return response;
+    }).catch(() => {
+      // Офлайн — отдаём из кеша
+      return caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+      });
     })
   );
 });
