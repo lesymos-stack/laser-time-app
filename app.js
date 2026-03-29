@@ -408,7 +408,10 @@ function renderHome() {
     .sort((a, b) => a.sort - b.sort)
     .map(c => `
       <div class="category-card" data-category="${c.id}">
-        <span class="category-icon">${c.icon}</span>
+        ${c.photo_url
+          ? `<img class="category-photo" src="${c.photo_url}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;">`
+          : `<span class="category-icon">${c.icon}</span>`
+        }
         <div class="category-name">${c.name}</div>
         <div class="category-count">${formatCount(counts[c.id] || 0)}</div>
       </div>
@@ -1037,7 +1040,10 @@ function renderMasterCategoriesList() {
   const listHTML = categories.length
     ? categories.map(c => `
         <div class="admin-service-card" data-cat-id="${c.id}">
-          <div class="admin-service-thumb-placeholder">${c.icon || '📁'}</div>
+          ${c.photo_url
+            ? `<img class="admin-service-thumb" src="${c.photo_url}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;">`
+            : `<div class="admin-service-thumb-placeholder">${c.icon || '📁'}</div>`
+          }
           <div class="admin-service-info">
             <div class="admin-service-name">${c.name}</div>
             <div class="admin-service-meta">Порядок: ${c.sort_order || 0}</div>
