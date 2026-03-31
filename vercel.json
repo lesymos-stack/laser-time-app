@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.beautyplatform.ru/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://api.beautyplatform.ru/uploads/:path*"
+    }
+  ]
+}
