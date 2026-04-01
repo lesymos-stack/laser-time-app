@@ -143,6 +143,7 @@ function renderLoginScreen() {
             </div>
           </div>
           <button class="login-btn" id="sendCodeBtn">Позвонить мне</button>
+          <div style="font-size:13px;color:#999;margin-top:8px;line-height:1.4">Вам поступит звонок. Введите 4 последние цифры входящего номера.</div>
           <div id="loginError" class="login-error"></div>
         </div>
 
@@ -205,15 +206,19 @@ function initLoginHandlers(onSuccess) {
   // Маска телефона
   if (loginPhone) {
     loginPhone.addEventListener('input', () => {
-      let val = loginPhone.value.replace(/\D/g, '');
-      if (val.length > 10) val = val.slice(0, 10);
-      let formatted = '';
-      if (val.length > 0) formatted += '(' + val.slice(0, 3);
-      if (val.length >= 3) formatted += ') ' + val.slice(3, 6);
-      if (val.length >= 6) formatted += '-' + val.slice(6, 8);
-      if (val.length >= 8) formatted += '-' + val.slice(8, 10);
-      loginPhone.value = formatted;
+      const raw = loginPhone.value.replace(/\D/g, '');
+      loginPhone.value = formatPhoneMask(raw);
     });
+  }
+
+  function formatPhoneMask(digits) {
+    if (digits.length > 10) digits = digits.slice(0, 10);
+    let f = '';
+    if (digits.length > 0) f += '(' + digits.slice(0, 3);
+    if (digits.length >= 3) f += ') ' + digits.slice(3, 6);
+    if (digits.length >= 6) f += '-' + digits.slice(6, 8);
+    if (digits.length >= 8) f += '-' + digits.slice(8, 10);
+    return f;
   }
 
   // Отправка кода
@@ -347,12 +352,7 @@ function initLoginHandlers(onSuccess) {
     masterPhone.addEventListener('input', () => {
       let val = masterPhone.value.replace(/\D/g, '');
       if (val.length > 10) val = val.slice(0, 10);
-      let f = '';
-      if (val.length > 0) f += '(' + val.slice(0, 3);
-      if (val.length >= 3) f += ') ' + val.slice(3, 6);
-      if (val.length >= 6) f += '-' + val.slice(6, 8);
-      if (val.length >= 8) f += '-' + val.slice(8, 10);
-      masterPhone.value = f;
+      masterPhone.value = formatPhoneMask(val);
     });
   }
 
