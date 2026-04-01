@@ -78,6 +78,28 @@ const TAB_MAP = {
 document.addEventListener('DOMContentLoaded', async () => {
   initTelegram();
 
+  // Принудительно обновляем SW при каждом визите
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg) reg.update();
+    });
+  }
+
+  // Очищаем данные если сменился мастер (другая ссылка)
+  const currentSlug = new URLSearchParams(window.location.search).get('master');
+  const savedSlug = localStorage.getItem('current_master_slug');
+  if (currentSlug && savedSlug && currentSlug !== savedSlug) {
+    // Мастер сменился — сбрасываем авторизацию и данные
+    localStorage.removeItem('beauty_auth');
+    localStorage.removeItem('onboardingDone');
+    localStorage.removeItem('bookingHistory');
+    localStorage.removeItem('bonusBalance');
+    localStorage.removeItem('offerShown');
+  }
+  if (currentSlug) {
+    localStorage.setItem('current_master_slug', currentSlug);
+  }
+
   // Проверяем ?page= ДО любых загрузок — для быстрого открытия спецстраниц
   const pageParamEarly = new URLSearchParams(window.location.search).get('page');
   if (pageParamEarly === 'register') {
