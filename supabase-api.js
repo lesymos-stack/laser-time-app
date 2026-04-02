@@ -700,6 +700,7 @@ async function loadAllData() {
       id: c.id,
       name: c.name,
       icon: c.icon,
+      photo_url: c.photo_url,
       sort: c.sort_order,
     })),
     services: services.map(s => ({
