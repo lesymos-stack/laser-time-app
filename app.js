@@ -1907,8 +1907,12 @@ function bindEvents(screenName, container) {
       const shareBtn = container.querySelector('#homeShareBtn');
       if (shareBtn) {
         shareBtn.addEventListener('click', () => {
-          const shareText = 'Привет! Посмотри Лазер Тайм — лазерная эпиляция и косметология. Записаться можно прямо в Telegram:';
-          const shareUrl = 'https://t.me/lasertime_prilo_bot';
+          const masterSlug = MASTER?.slug || '';
+          const masterName = MASTER?.name || 'Beauty Platform';
+          const shareText = `Привет! Посмотри ${masterName}. Записаться можно онлайн:`;
+          const shareUrl = MASTER?.bot_username
+            ? `https://t.me/${MASTER.bot_username}`
+            : `https://app.beautyplatform.ru/?master=${masterSlug}`;
           if (tg) {
             tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`);
           } else {
@@ -3157,20 +3161,24 @@ function showOnboarding() {
 function showOfferIfNeeded() {
   if (localStorage.getItem('offerShown')) return;
 
+  // Если у мастера нет Telegram-бота — не показываем оффер с подпиской
+  const botUsername = MASTER?.bot_username;
+  const botLink = botUsername ? `https://t.me/${botUsername}?start=promo` : '';
+
   const overlay = document.createElement('div');
   overlay.className = 'offer-overlay';
   overlay.innerHTML = `
     <div class="offer-card">
       <div class="offer-emoji">🎁</div>
       <div class="offer-title">Скидка 20% на первую запись</div>
-      <div class="offer-subtitle">Подпишитесь на бота — получите промокод в личное сообщение</div>
+      <div class="offer-subtitle">${botLink ? 'Подпишитесь на бота — получите промокод' : 'Запишитесь сейчас и получите скидку'}</div>
       <ul class="offer-bullets">
         <li>Напомним о записи за день</li>
         <li>Первыми узнаёте о свободных окошках</li>
         <li>Эксклюзивные акции для подписчиков</li>
       </ul>
-      <a href="https://t.me/lasertime_prilo_bot?profile" target="_blank" class="offer-btn">Получить скидку 20%</a>
-      <button class="offer-skip" id="offerSkipBtn">Пропустить</button>
+      ${botLink ? `<a href="${botLink}" target="_blank" class="offer-btn">Получить скидку 20%</a>` : ''}
+      <button class="offer-skip" id="offerSkipBtn">${botLink ? 'Пропустить' : 'Понятно'}</button>
     </div>
   `;
 
