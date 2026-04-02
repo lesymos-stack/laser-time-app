@@ -441,13 +441,12 @@ function renderHome() {
   const categoriesHTML = CATEGORIES
     .sort((a, b) => a.sort - b.sort)
     .map(c => `
-      <div class="category-card" data-category="${c.id}">
-        ${c.photo_url
-          ? `<img class="category-photo" src="${c.photo_url}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;">`
-          : `<span class="category-icon">${c.icon}</span>`
-        }
-        <div class="category-name">${c.name}</div>
-        <div class="category-count">${formatCount(counts[c.id] || 0)}</div>
+      <div class="category-card ${c.photo_url ? 'has-photo' : ''}" data-category="${c.id}" ${c.photo_url ? `style="background-image:url('${c.photo_url}')"` : ''}>
+        ${!c.photo_url ? `<span class="category-icon">${c.icon}</span>` : ''}
+        <div class="category-label">
+          <div class="category-name">${c.name}</div>
+          <div class="category-count">${formatCount(counts[c.id] || 0)}</div>
+        </div>
       </div>
     `).join('');
 
