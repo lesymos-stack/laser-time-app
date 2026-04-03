@@ -3683,40 +3683,12 @@ function updateFallbackBackButton(screenName) {
     document.body.appendChild(backBtn);
   }
 
-  // Кнопка действия внизу — только вне Telegram
-  if (!tg) {
-    let btnText = '';
-    let btnAction = null;
-
-    switch (screenName) {
-      case 'service':
-        btnText = 'ЗАПИСАТЬСЯ';
-        btnAction = () => {
-          state.selectedDate = null;
-          state.selectedTime = null;
-          navigateTo('booking');
-        };
-        break;
-      case 'booking':
-        btnText = 'ПОДТВЕРДИТЬ';
-        btnAction = () => {
-          if (state.selectedDate && state.selectedTime) {
-            submitBooking();
-          }
-        };
-        break;
-      case 'success':
-        btnText = 'ЗАКРЫТЬ';
-        btnAction = () => navigateTo('home', false);
-        break;
-    }
-
-    if (btnText && btnAction) {
-      const mainBtn = document.createElement('button');
-      mainBtn.className = 'fallback-main-btn';
-      mainBtn.textContent = btnText;
-      mainBtn.addEventListener('click', btnAction);
-      document.body.appendChild(mainBtn);
-    }
+  // Кнопка действия внизу — только вне Telegram и только для success
+  if (!tg && screenName === 'success') {
+    const mainBtn = document.createElement('button');
+    mainBtn.className = 'fallback-main-btn';
+    mainBtn.textContent = 'ЗАКРЫТЬ';
+    mainBtn.addEventListener('click', () => navigateTo('home', false));
+    document.body.appendChild(mainBtn);
   }
 }
