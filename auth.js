@@ -207,18 +207,36 @@ function initLoginHandlers(onSuccess) {
   const changePhoneBtn = document.getElementById('changePhoneBtn');
   const codeInputs = document.querySelectorAll('.login-code-digit');
 
-  // Маска телефона
+  // Маска телефона с сохранением позиции курсора
   if (loginPhone) {
     loginPhone.addEventListener('input', () => {
-      const raw = loginPhone.value.replace(/\D/g, '');
-      loginPhone.value = formatPhoneMask(raw);
+      applyPhoneMask(loginPhone);
     });
   }
 
+  function applyPhoneMask(input) {
+    const raw = input.value.replace(/\D/g, '').slice(0, 10);
+    const formatted = formatPhoneMask(raw);
+    if (input.value !== formatted) {
+      // Запоминаем сколько цифр было до курсора
+      const cursorPos = input.selectionStart;
+      const digitsBefore = input.value.slice(0, cursorPos).replace(/\D/g, '').length;
+      input.value = formatted;
+      // Восстанавливаем курсор по количеству цифр
+      let newPos = 0;
+      let count = 0;
+      for (let i = 0; i < formatted.length && count < digitsBefore; i++) {
+        newPos = i + 1;
+        if (/\d/.test(formatted[i])) count++;
+      }
+      input.setSelectionRange(newPos, newPos);
+    }
+  }
+
   function formatPhoneMask(digits) {
-    if (digits.length > 10) digits = digits.slice(0, 10);
-    let f = '';
-    if (digits.length > 0) f += '(' + digits.slice(0, 3);
+    if (!digits) return '';
+    let f = '(';
+    f += digits.slice(0, 3);
     if (digits.length >= 3) f += ') ' + digits.slice(3, 6);
     if (digits.length >= 6) f += '-' + digits.slice(6, 8);
     if (digits.length >= 8) f += '-' + digits.slice(8, 10);
@@ -365,9 +383,7 @@ function initLoginHandlers(onSuccess) {
   const masterPhone = document.getElementById('masterLoginPhone');
   if (masterPhone) {
     masterPhone.addEventListener('input', () => {
-      let val = masterPhone.value.replace(/\D/g, '');
-      if (val.length > 10) val = val.slice(0, 10);
-      masterPhone.value = formatPhoneMask(val);
+      applyPhoneMask(masterPhone);
     });
   }
 
