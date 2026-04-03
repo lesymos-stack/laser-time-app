@@ -759,13 +759,14 @@ function renderMasterBookings() {
         return `
         <div class="admin-booking-card">
           <div class="admin-booking-header">
-            <span class="admin-booking-name">${b.client_name || 'Клиент'}${b.client_username ? ' @' + b.client_username : ''}</span>
+            <span class="admin-booking-name">${b.client_name || b.client_phone || 'Клиент'}${b.client_username ? ' @' + b.client_username : ''}</span>
             <span class="admin-booking-status ${st.cls}">${st.label}</span>
           </div>
           <div class="admin-booking-details">
             <span>${serviceName}</span>
             <span>${b.date}, ${timeShort}</span>
             <span>${b.price ? b.price + ' ₽' : ''}${bonusInfo}</span>
+            ${b.client_phone ? '<span>📞 ' + b.client_phone + '</span>' : ''}
           </div>
           ${b.status === 'pending' ? `
             <div class="admin-booking-actions">
