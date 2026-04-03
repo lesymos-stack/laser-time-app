@@ -208,8 +208,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Веб-пользователь без авторизации — показываем логин клиента
   // Но если телефон мастера совпадёт — мастер войдёт через masterLogin без звонка
   if (!tg && !getCurrentUser() && typeof renderLoginScreen === 'function') {
+    // Скрываем таб-бар на экране авторизации
+    const tabBar = document.getElementById('tabBar');
+    if (tabBar) tabBar.classList.add('hidden');
     // Показываем экран с вкладками Клиент/Мастер
-    // Мастер сможет переключиться и войти по телефону + коду без звонка
     document.getElementById('app').innerHTML = renderLoginScreen();
     initLoginHandlers((user) => {
       location.reload();

@@ -136,6 +136,10 @@ function renderLoginScreen() {
 
         <div id="loginStep1">
           <div class="login-input-group">
+            <label class="login-label">Ваше имя</label>
+            <input type="text" id="loginName" class="login-input" placeholder="Как вас зовут?" maxlength="50" autocomplete="name" style="padding:14px 16px" />
+          </div>
+          <div class="login-input-group">
             <label class="login-label">Номер телефона</label>
             <div class="login-phone-row">
               <span class="login-phone-prefix">+7</span>
@@ -267,6 +271,17 @@ function initLoginHandlers(onSuccess) {
         const result = await verifyOtp(currentPhone, code);
 
         if (result.ok) {
+          // Сохраняем имя клиента в auth-данные
+          const nameInput = document.getElementById('loginName');
+          const clientName = nameInput ? nameInput.value.trim() : '';
+          if (clientName) {
+            const auth = getStoredAuth();
+            if (auth) {
+              if (!auth.user) auth.user = {};
+              auth.user.name = clientName;
+              saveAuth(auth);
+            }
+          }
           onSuccess(result.user);
         } else {
           verifyError.textContent = result.error || 'Неверный код';
