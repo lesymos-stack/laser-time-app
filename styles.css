@@ -1429,6 +1429,103 @@ img {
   opacity: 0.9;
 }
 
+/* === Календарь === */
+.calendar-wrapper {
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.cal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.cal-nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  color: var(--tg-theme-text-color, #000);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-nav:active {
+  opacity: 0.6;
+}
+
+.cal-days-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.cal-days-header span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  padding: 4px 0;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  row-gap: 4px;
+}
+
+.cal-day {
+  padding: 10px 0;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--tg-theme-text-color, #000);
+  transition: background 150ms ease;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-day.empty {
+  cursor: default;
+}
+
+.cal-day.disabled {
+  color: var(--tg-theme-hint-color, #ccc);
+  cursor: default;
+  opacity: 0.4;
+}
+
+.cal-day.today {
+  color: var(--tg-theme-button-color, #007AFF);
+}
+
+.cal-day.selected {
+  background: var(--tg-theme-button-color, #007AFF);
+  color: var(--tg-theme-button-text-color, #fff);
+}
+
+.cal-day:not(.disabled):not(.empty):active {
+  background: var(--tg-theme-secondary-bg-color, #e8e8e8);
+}
+
 /* Сетка слотов времени */
 .time-slots {
   display: grid;

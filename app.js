@@ -63,6 +63,7 @@ const state = {
   masterClients: [],          // клиенты мастера
   clientPhone: '',            // телефон клиента для записи
   clientName: '',             // имя клиента для записи
+  calendarMonth: null,        // текущий месяц календаря (Date)
 };
 
 // Экраны, на которых виден таб-бар
@@ -1424,25 +1425,70 @@ function showConsentPopup() {
   });
 }
 
+// === Календарь для выбора даты ===
+const MONTH_NAMES_FULL = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const DAY_HEADERS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+function buildCalendarHTML(viewDate, selectedDateKey, schedule) {
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const today = new Date();
+  const todayKey = formatDateKey(today);
+
+  // Первый день месяца и количество дней
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+
+  // День недели первого числа (0=Пн, 6=Вс)
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  let html = `
+    <div class="cal-header">
+      <button class="cal-nav" id="calPrev">‹</button>
+      <span class="cal-title">${MONTH_NAMES_FULL[month]} ${year}</span>
+      <button class="cal-nav" id="calNext">›</button>
+    </div>
+    <div class="cal-days-header">
+      ${DAY_HEADERS.map(d => `<span>${d}</span>`).join('')}
+    </div>
+    <div class="cal-grid">`;
+
+  // Пустые ячейки до первого дня
+  for (let i = 0; i < startDow; i++) {
+    html += '<span class="cal-day empty"></span>';
+  }
+
+  // Дни месяца
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const hasSlots = schedule[dateKey] && schedule[dateKey].length > 0;
+    const isPast = dateKey < todayKey;
+    const isToday = dateKey === todayKey;
+    const isSelected = dateKey === selectedDateKey;
+
+    let cls = 'cal-day';
+    if (isPast || !hasSlots) cls += ' disabled';
+    if (isToday) cls += ' today';
+    if (isSelected) cls += ' selected';
+
+    html += `<span class="${cls}" data-date="${dateKey}">${d}</span>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
 function renderBooking() {
   const service = state.selectedService;
   if (!service) return '';
 
   const displayPrice = service.salePrice || service.price;
 
-  // Генерируем чипы дат
-  const dates = Object.keys(SCHEDULE).sort();
-  const datesHTML = dates.map(dateKey => {
-    const date = parseDate(dateKey);
-    const isSelected = state.selectedDate === dateKey;
-    return `
-      <div class="date-chip ${isSelected ? 'selected' : ''}" data-date="${dateKey}">
-        <div class="date-chip-day">${getDayName(date)}</div>
-        <div class="date-chip-num">${date.getDate()}</div>
-        <div class="date-chip-month">${getMonthShort(date)}</div>
-      </div>
-    `;
-  }).join('');
+  // Генерируем календарь
+  const calendarMonth = state.calendarMonth || new Date();
+  const calendarHTML = buildCalendarHTML(calendarMonth, state.selectedDate, SCHEDULE);
 
   // Слоты времени для выбранной даты
   let timeSlotsHTML = '<div class="no-slots">Выберите дату</div>';
@@ -1469,8 +1515,8 @@ function renderBooking() {
     </div>
 
     <div class="booking-section-title">Выберите дату</div>
-    <div class="date-picker" id="datePicker">
-      ${datesHTML}
+    <div class="calendar-wrapper" id="calendarWrapper">
+      ${calendarHTML}
     </div>
 
     <div class="booking-section-title">Выберите время</div>
@@ -2900,29 +2946,49 @@ function bindEvents(screenName, container) {
     case 'booking':
       const confirmBtn = container.querySelector('#bookingConfirmBtn');
 
-      // Тап по дате
-      container.querySelectorAll('.date-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          state.selectedDate = chip.dataset.date;
-          state.selectedTime = null; // сбрасываем время при смене даты
-          haptic('selection');
+      // Календарь — навигация по месяцам и выбор дня
+      function bindCalendarEvents() {
+        const wrapper = container.querySelector('#calendarWrapper');
+        if (!wrapper) return;
 
-          // Обновляем визуал дат
-          container.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
-          chip.classList.add('selected');
+        const prevBtn = wrapper.querySelector('#calPrev');
+        const nextBtn = wrapper.querySelector('#calNext');
 
-          // Деактивируем кнопку при смене даты
-          if (confirmBtn) {
-            confirmBtn.disabled = true;
-            confirmBtn.classList.add('disabled');
-            confirmBtn.textContent = 'Выберите время';
-          }
-
-          // Обновляем слоты
-          updateTimeSlots();
-          updateTelegramButtons('booking');
+        if (prevBtn) prevBtn.addEventListener('click', () => {
+          const m = state.calendarMonth || new Date();
+          state.calendarMonth = new Date(m.getFullYear(), m.getMonth() - 1, 1);
+          wrapper.innerHTML = buildCalendarHTML(state.calendarMonth, state.selectedDate, SCHEDULE);
+          bindCalendarEvents();
         });
-      });
+
+        if (nextBtn) nextBtn.addEventListener('click', () => {
+          const m = state.calendarMonth || new Date();
+          state.calendarMonth = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+          wrapper.innerHTML = buildCalendarHTML(state.calendarMonth, state.selectedDate, SCHEDULE);
+          bindCalendarEvents();
+        });
+
+        wrapper.querySelectorAll('.cal-day:not(.disabled):not(.empty)').forEach(day => {
+          day.addEventListener('click', () => {
+            state.selectedDate = day.dataset.date;
+            state.selectedTime = null;
+            haptic('selection');
+
+            wrapper.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
+            day.classList.add('selected');
+
+            if (confirmBtn) {
+              confirmBtn.disabled = true;
+              confirmBtn.classList.add('disabled');
+              confirmBtn.textContent = 'Выберите время';
+            }
+
+            updateTimeSlots();
+            updateTelegramButtons('booking');
+          });
+        });
+      }
+      bindCalendarEvents();
 
       // Тап по времени
       container.querySelectorAll('.time-slot:not(.booked)').forEach(slot => {
