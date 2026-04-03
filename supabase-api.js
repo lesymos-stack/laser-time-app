@@ -296,6 +296,7 @@ async function upsertClient(masterId, tgUser, phone) {
     const updates = {};
     if (phone && !existing.phone) updates.phone = phone;
     if (tgUser.id && !existing.tg_user_id) updates.tg_user_id = tgUser.id;
+    if (tgUser.first_name && !existing.first_name) updates.first_name = tgUser.first_name;
     if (Object.keys(updates).length > 0) {
       await API.patch('clients', `id=eq.${existing.id}`, updates);
     }

@@ -62,6 +62,7 @@ const state = {
   masterCategories: [],       // все категории мастера
   masterClients: [],          // клиенты мастера
   clientPhone: '',            // телефон клиента для записи
+  clientName: '',             // имя клиента для записи
 };
 
 // Экраны, на которых виден таб-бар
@@ -1476,6 +1477,9 @@ function renderBooking() {
       ${timeSlotsHTML}
     </div>
 
+    <div class="booking-section-title">Ваше имя</div>
+    <input type="text" id="bookingName" class="booking-phone-input" placeholder="Как к вам обращаться" value="${state.clientName || getCurrentUser()?.name || ''}" />
+
     ${getCurrentUser()?.source === 'web' ? `
     <div class="booking-section-title">Ваш телефон</div>
     <div class="booking-phone-display">${getCurrentUser().phone}</div>
@@ -1630,6 +1634,11 @@ async function submitBooking() {
   const service = state.selectedService;
   const user = getCurrentUser();
 
+  // Считываем имя из инпута
+  const nameInput = document.getElementById('bookingName');
+  const clientName = nameInput ? nameInput.value.trim() : (user?.name || '');
+  state.clientName = clientName;
+
   // Считываем телефон из инпута (для Telegram-юзеров — ручной ввод)
   const phoneInput = document.getElementById('bookingPhone');
   const phone = user?.source === 'web' ? user.phone : (phoneInput ? phoneInput.value.trim() : '');
@@ -1654,7 +1663,7 @@ async function submitBooking() {
         master_id: CURRENT_MASTER_ID,
         service_id: service.id,
         client_tg_id: user?.source === 'telegram' ? user.id : 0,
-        client_name: user?.name || '',
+        client_name: clientName,
         client_username: user?.username || '',
         client_phone: phone || '',
         date: state.selectedDate,
@@ -1669,8 +1678,8 @@ async function submitBooking() {
         // Создаём/обновляем клиента
         if (user) {
           const clientData = user.source === 'telegram'
-            ? { id: user.id, first_name: user.name, username: user.username }
-            : { id: user.id, first_name: user.name, username: '' };
+            ? { id: user.id, first_name: clientName || user.name, username: user.username }
+            : { id: user.id, first_name: clientName, username: '' };
           upsertClient(CURRENT_MASTER_ID, clientData, phone);
         }
         // Списываем бонусы
