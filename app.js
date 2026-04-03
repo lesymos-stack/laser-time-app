@@ -313,7 +313,7 @@ function renderScreen(screenName, isBack = false) {
     case 'service':  html = renderService(); break;
     case 'booking':  html = renderBooking(); break;
     case 'success':  html = renderSuccess(); break;
-    case 'history':  html = renderHistory(); break;
+    case 'history':  state.clientBookings = null; state.clientBookingsLoaded = false; html = renderHistory(); break;
     case 'bonus':    html = renderBonus(); break;
     case 'abonement': html = renderAbonement(); break;
     case 'masterLogin': html = renderMasterLogin(); break;
@@ -469,17 +469,22 @@ function renderHome() {
       <button class="role-tab" id="roleMaster">Мастер</button>
     </div>
 
-    <div class="master-header">
-      <div class="master-avatar">
-        ${MASTER.avatar
-          ? `<img src="${MASTER.avatar}" alt="${MASTER.name}">`
-          : initials}
+    ${MASTER.avatar ? `
+    <div class="master-hero" style="background-image:url('${MASTER.avatar}')">
+      <div class="master-hero-overlay">
+        <div class="master-hero-name">${MASTER.name}</div>
+        <div class="master-hero-desc">${MASTER.description}</div>
       </div>
+    </div>
+    ` : `
+    <div class="master-header">
+      <div class="master-avatar">${initials}</div>
       <div class="master-info">
         <div class="master-name">${MASTER.name}</div>
         <div class="master-desc">${MASTER.description}</div>
       </div>
     </div>
+    `}
 
     <div class="contact-buttons">
       <a href="tel:${MASTER.phone}" class="contact-btn contact-btn-call">
@@ -1044,6 +1049,13 @@ function renderMasterProfile() {
   return `
     <div class="master-section-title">Профиль мастера</div>
     <div class="admin-form">
+      <label class="admin-label">Фото мастера / салона</label>
+      <div class="profile-photo-upload">
+        ${m.avatar ? `<img src="${m.avatar}" class="profile-photo-preview" id="profilePhotoPreview">` : `<div class="profile-photo-placeholder" id="profilePhotoPreview">📷 Нажмите чтобы загрузить</div>`}
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none">
+        <button class="admin-btn" id="profilePhotoBtn" style="margin-top:8px;">📷 ${m.avatar ? 'Изменить фото' : 'Загрузить фото'}</button>
+      </div>
+
       <label class="admin-label">Название салона / имя мастера</label>
       <input type="text" id="profileName" class="admin-input" value="${(m.name || '').replace(/"/g, '&quot;')}" placeholder="Например: Студия Анны" />
 
@@ -1199,28 +1211,219 @@ function renderServiceForm() {
 // ============================================================
 
 function renderHistory() {
-  const bookings = JSON.parse(localStorage.getItem('bookingHistory') || '[]');
+  // Инициализируем вкладку
+  if (!state.historyTab) state.historyTab = 'upcoming';
 
-  const listHTML = bookings.length
-    ? bookings.map(b => `
-      <div class="history-card">
-        <div class="history-card-header">
-          <span class="history-card-name">${b.serviceName}</span>
-          <span class="history-card-price">${b.price} ₽</span>
-        </div>
-        <div class="history-card-details">
-          <span>${b.date}, ${b.time}</span>
-        </div>
-      </div>
-    `).join('')
-    : '<div class="history-empty">Пока нет записей. После первого визита здесь появится история.</div>';
+  // Загружаем записи клиента из API
+  if (!state.clientBookings) {
+    state.clientBookings = [];
+    state.clientBookingsLoaded = false;
+    loadClientBookingsForHistory();
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const all = state.clientBookings || [];
+  const upcoming = all.filter(b => {
+    if (b.status === 'cancelled' || b.status === 'no_show') return false;
+    const d = parseDate(b.date);
+    return d >= today || b.status === 'pending' || b.status === 'confirmed';
+  }).filter(b => {
+    const d = parseDate(b.date);
+    return d >= today;
+  });
+  const past = all.filter(b => {
+    const d = parseDate(b.date);
+    return d < today || b.status === 'completed' || b.status === 'cancelled' || b.status === 'no_show';
+  }).filter(b => {
+    const d = parseDate(b.date);
+    return d < today || b.status === 'completed';
+  });
+
+  const isUpcoming = state.historyTab === 'upcoming';
+
+  const upcomingHTML = upcoming.length
+    ? upcoming.map(b => {
+        const serviceName = b.services?.name || b.service_name || 'Услуга';
+        const date = parseDate(b.date);
+        const dateFmt = formatDateFull(date);
+        const timeShort = b.time ? b.time.substring(0, 5) : '';
+        const statusMap = {
+          confirmed: { cls: 'status-confirmed', label: 'Подтверждено' },
+          pending: { cls: 'status-pending', label: 'Ожидает подтверждения' },
+        };
+        const st = statusMap[b.status] || { cls: 'status-pending', label: b.status };
+
+        return `
+        <div class="my-booking-card">
+          <div class="my-booking-status ${st.cls}">${st.label}</div>
+          <div class="my-booking-service">${serviceName}</div>
+          <div class="my-booking-datetime">
+            <span>📅 ${dateFmt}</span>
+            <span>🕐 ${timeShort}</span>
+          </div>
+          ${b.duration ? `<div class="my-booking-duration">⏱ ${formatDuration(b.duration)}</div>` : ''}
+          <div class="my-booking-price">${b.price ? formatPrice(b.price) + ' · оплата на месте' : ''}</div>
+          <div class="my-booking-actions">
+            ${b.status === 'pending' ? `<button class="my-booking-btn confirm-btn" data-booking-id="${b.id}">Подтвердить</button>` : ''}
+            <button class="my-booking-btn cancel-btn" data-booking-id="${b.id}">Отменить</button>
+            <button class="my-booking-btn reschedule-btn" data-booking-id="${b.id}" data-service-id="${b.service_id}">Перенести</button>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="history-empty">Нет предстоящих записей</div>';
+
+  const pastHTML = past.length
+    ? past.map(b => {
+        const serviceName = b.services?.name || b.service_name || 'Услуга';
+        const date = parseDate(b.date);
+        const dateFmt = formatDateFull(date);
+        const timeShort = b.time ? b.time.substring(0, 5) : '';
+        const isCancelled = b.status === 'cancelled' || b.status === 'no_show';
+
+        return `
+        <div class="my-booking-card past">
+          <div class="my-booking-status ${isCancelled ? 'status-cancelled' : 'status-completed'}">${isCancelled ? 'Отменено' : '✓ Выполнено'}</div>
+          <div class="my-booking-service">${serviceName}</div>
+          <div class="my-booking-datetime">
+            <span>📅 ${dateFmt}</span>
+            <span>🕐 ${timeShort}</span>
+          </div>
+          <div class="my-booking-price">${b.price ? formatPrice(b.price) : ''}</div>
+          ${!isCancelled && b.service_id ? `
+          <div class="my-booking-actions">
+            <button class="my-booking-btn again-btn" data-service-id="${b.service_id}">Записаться снова</button>
+          </div>` : ''}
+        </div>`;
+      }).join('')
+    : '<div class="history-empty">Пока нет завершённых записей</div>';
 
   return `
     <div class="history-screen">
-      <div class="history-title">История посещений</div>
-      ${listHTML}
+      <div class="history-title">Мои записи</div>
+      <div class="history-tabs">
+        <button class="history-tab ${isUpcoming ? 'active' : ''}" data-tab="upcoming">Предстоящие${upcoming.length ? ' (' + upcoming.length + ')' : ''}</button>
+        <button class="history-tab ${!isUpcoming ? 'active' : ''}" data-tab="past">Прошедшие${past.length ? ' (' + past.length + ')' : ''}</button>
+      </div>
+      <div class="history-tab-content">
+        ${isUpcoming ? upcomingHTML : pastHTML}
+      </div>
     </div>
   `;
+}
+
+async function loadClientBookingsForHistory() {
+  const user = getCurrentUser();
+  if (!user || !CURRENT_MASTER_ID) return;
+  try {
+    const tgId = user.source === 'telegram' ? user.id : 0;
+    const bookings = await loadClientBookings(CURRENT_MASTER_ID, tgId, user.phone);
+    state.clientBookings = bookings || [];
+    state.clientBookingsLoaded = true;
+    // Перерисовываем если мы на экране истории
+    if (state.currentScreen === 'history') {
+      const app = document.getElementById('app');
+      if (app) app.innerHTML = renderHistory();
+      bindHistoryEvents();
+    }
+  } catch (e) {
+    console.error('Ошибка загрузки записей клиента:', e);
+  }
+}
+
+function bindHistoryEvents() {
+  const container = document.getElementById('app');
+  if (!container) return;
+
+  // Переключение вкладок
+  container.querySelectorAll('.history-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      state.historyTab = tab.dataset.tab;
+      container.innerHTML = renderHistory();
+      bindHistoryEvents();
+      haptic('selection');
+    });
+  });
+
+  // Подтвердить запись
+  container.querySelectorAll('.confirm-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.bookingId;
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        await API.patch('bookings', `id=eq.${id}`, { status: 'confirmed' });
+        const b = state.clientBookings.find(x => x.id === id);
+        if (b) b.status = 'confirmed';
+        container.innerHTML = renderHistory();
+        bindHistoryEvents();
+        haptic('notification_success');
+      } catch (e) {
+        alert('Ошибка подтверждения');
+        btn.disabled = false;
+        btn.textContent = 'Подтвердить';
+      }
+    });
+  });
+
+  // Отменить запись
+  container.querySelectorAll('.cancel-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Отменить запись?')) return;
+      const id = btn.dataset.bookingId;
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        await API.patch('bookings', `id=eq.${id}`, { status: 'cancelled' });
+        const b = state.clientBookings.find(x => x.id === id);
+        if (b) b.status = 'cancelled';
+        container.innerHTML = renderHistory();
+        bindHistoryEvents();
+        haptic('notification_success');
+      } catch (e) {
+        alert('Ошибка отмены');
+        btn.disabled = false;
+        btn.textContent = 'Отменить';
+      }
+    });
+  });
+
+  // Перенести — переход на экран записи с тем же сервисом
+  container.querySelectorAll('.reschedule-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const bookingId = btn.dataset.bookingId;
+      const serviceId = btn.dataset.serviceId;
+      const service = SERVICES.find(s => s.id === serviceId);
+      if (service) {
+        // Сначала отменяем текущую запись
+        try {
+          await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
+          const b = state.clientBookings.find(x => x.id === bookingId);
+          if (b) b.status = 'cancelled';
+        } catch (e) { /* продолжаем */ }
+        // Открываем экран записи
+        state.selectedService = service;
+        state.selectedDate = null;
+        state.selectedTime = null;
+        navigateTo('booking');
+      }
+    });
+  });
+
+  // Записаться снова
+  container.querySelectorAll('.again-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const serviceId = btn.dataset.serviceId;
+      const service = SERVICES.find(s => s.id === serviceId);
+      if (service) {
+        state.selectedService = service;
+        state.selectedDate = null;
+        state.selectedTime = null;
+        navigateTo('booking');
+      }
+    });
+  });
 }
 
 // Генерация чипов дат для главного экрана
@@ -2004,6 +2207,10 @@ function bindEvents(screenName, container) {
       }
       break;
 
+    case 'history':
+      bindHistoryEvents();
+      break;
+
     case 'masterLogin':
       // Кнопка «Войти»
       const loginBtn = container.querySelector('#masterLoginBtn');
@@ -2439,6 +2646,45 @@ function bindEvents(screenName, container) {
 
           sendBroadcastBtn.disabled = false;
           sendBroadcastBtn.textContent = 'Отправить рассылку';
+        });
+      }
+
+      // --- Профиль: загрузка фото ---
+      const profilePhotoBtn = container.querySelector('#profilePhotoBtn');
+      const profilePhotoInput = container.querySelector('#profilePhotoInput');
+      if (profilePhotoBtn && profilePhotoInput) {
+        profilePhotoBtn.addEventListener('click', () => profilePhotoInput.click());
+        profilePhotoInput.addEventListener('change', async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          profilePhotoBtn.disabled = true;
+          profilePhotoBtn.textContent = '⏳ Загрузка...';
+          try {
+            const formData = new FormData();
+            formData.append('photo', file);
+            const resp = await fetch(`${API_BASE_URL}/api/v1/upload/${CURRENT_MASTER_ID}`, {
+              method: 'POST',
+              body: formData,
+            });
+            const data = await resp.json();
+            if (data.url) {
+              await updateMaster(CURRENT_MASTER_ID, { avatar_url: data.url });
+              MASTER.avatar = data.url;
+              const preview = container.querySelector('#profilePhotoPreview');
+              if (preview) {
+                preview.outerHTML = `<img src="${data.url}" class="profile-photo-preview" id="profilePhotoPreview">`;
+              }
+              profilePhotoBtn.textContent = '✅ Фото загружено';
+            } else {
+              profilePhotoBtn.textContent = '❌ Ошибка загрузки';
+            }
+          } catch (err) {
+            profilePhotoBtn.textContent = '❌ ' + err.message;
+          }
+          setTimeout(() => {
+            profilePhotoBtn.disabled = false;
+            profilePhotoBtn.textContent = '📷 Изменить фото';
+          }, 2000);
         });
       }
 

@@ -145,6 +145,42 @@ img {
    3. ШАПКА МАСТЕРА
    ============================== */
 
+/* Hero-блок мастера с фото на всю ширину */
+.master-hero {
+  margin: 0 -16px;
+  height: 320px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  overflow: hidden;
+}
+
+.master-hero-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+}
+
+.master-hero-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.master-hero-desc {
+  font-size: 14px;
+  color: rgba(255,255,255,0.85);
+  margin-top: 4px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
 .master-header {
   display: flex;
   align-items: center;
@@ -527,40 +563,152 @@ img {
   font-weight: 700;
   color: var(--tg-theme-text-color, #000);
   margin-top: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   text-align: center;
   letter-spacing: -0.5px;
 }
 
-.history-card {
+/* --- Вкладки Предстоящие / Прошедшие --- */
+.history-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+  margin-bottom: 16px;
+}
+
+.history-tab {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  color: var(--tg-theme-hint-color, #8e8e93);
+}
+
+.history-tab.active {
+  background: var(--tg-theme-button-color, #007AFF);
+  color: var(--tg-theme-button-text-color, #fff);
+}
+
+.history-tab-content {
+  padding: 0 16px;
+}
+
+/* --- Карточка записи клиента --- */
+.my-booking-card {
   background: var(--tg-theme-bg-color, #ffffff);
-  border-radius: 14px;
-  padding: 14px 16px;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.my-booking-card.past {
+  opacity: 0.85;
+}
+
+.my-booking-status {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
   margin-bottom: 8px;
 }
 
-.history-card-header {
+.my-booking-status.status-confirmed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.my-booking-status.status-pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.my-booking-status.status-completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.my-booking-status.status-cancelled {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.my-booking-service {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tg-theme-text-color, #000);
+  margin-bottom: 8px;
+}
+
+.my-booking-datetime {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #666);
   margin-bottom: 4px;
 }
 
-.history-card-name {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--tg-theme-text-color, #000);
-}
-
-.history-card-price {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--tg-theme-button-color, #007AFF);
-}
-
-.history-card-details {
+.my-booking-duration {
   font-size: 13px;
-  color: var(--tg-theme-hint-color, #8e8e93);
+  color: var(--tg-theme-hint-color, #999);
+  margin-bottom: 4px;
+}
+
+.my-booking-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+  margin-bottom: 12px;
+}
+
+.my-booking-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.my-booking-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.my-booking-btn:active {
+  opacity: 0.7;
+}
+
+.my-booking-btn.confirm-btn {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.my-booking-btn.cancel-btn {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.my-booking-btn.reschedule-btn {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.my-booking-btn.again-btn {
+  background: var(--tg-theme-button-color, #007AFF);
+  color: var(--tg-theme-button-text-color, #fff);
+  flex: 1 1 100%;
 }
 
 .history-empty {
@@ -2326,6 +2474,31 @@ img {
   padding: 0 16px 24px;
 }
 
+.profile-photo-upload {
+  margin-bottom: 16px;
+}
+
+.profile-photo-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+
+.profile-photo-placeholder {
+  width: 100%;
+  height: 150px;
+  border-radius: 12px;
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tg-theme-hint-color, #999);
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .admin-label {
   display: block;
   font-size: 12px;
@@ -2550,8 +2723,8 @@ img {
 /* --- Колокольчик уведомлений --- */
 #notifBellContainer {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  bottom: 80px;
+  right: 16px;
   z-index: 1000;
 }
 .notification-bell {
