@@ -774,8 +774,8 @@ function renderMasterBookings() {
           ` : ''}
           ${b.status === 'confirmed' ? `
             <div class="admin-booking-actions">
-              <button class="admin-btn completed" data-booking-id="${b.id}" data-client-tg="${b.client_tg_id}" data-price="${b.price || 0}">✅ Визит состоялся</button>
-              <button class="admin-btn no-show" data-booking-id="${b.id}" data-client-tg="${b.client_tg_id}">❌ Не пришёл</button>
+              <button class="admin-btn completed" data-booking-id="${b.id}" data-client-tg="${b.client_tg_id}" data-client-phone="${b.client_phone || ''}" data-price="${b.price || 0}">✅ Визит состоялся</button>
+              <button class="admin-btn no-show" data-booking-id="${b.id}" data-client-tg="${b.client_tg_id}" data-client-phone="${b.client_phone || ''}">❌ Не пришёл</button>
             </div>
           ` : ''}
         </div>
@@ -2543,38 +2543,70 @@ function bindEvents(screenName, container) {
         });
       });
 
-      // --- Записи: визит состоялся / не пришёл (через API бота) ---
+      // --- Записи: визит состоялся / не пришёл (через VPS API) ---
       async function handleVisitAction(btn, action) {
         try {
           const bookingId = btn.dataset.bookingId;
           const clientTg = parseInt(btn.dataset.clientTg) || 0;
+          const clientPhone = btn.dataset.clientPhone || '';
           const price = parseInt(btn.dataset.price) || 0;
 
           btn.disabled = true;
           btn.textContent = '⏳';
 
-          const resp = await fetch('/api/complete-visit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              master_id: CURRENT_MASTER_ID,
-              master_code: MASTER_CODE,
-              booking_id: bookingId,
-              client_tg_id: clientTg,
-              price: price,
-              action: action,
-            }),
-          });
+          const newStatus = action === 'no_show' ? 'no_show' : 'completed';
 
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || 'Ошибка сервера');
+          // 1. Обновляем статус записи
+          const patchRes = await API.patch('bookings', `id=eq.${bookingId}`, { status: newStatus });
+          if (!patchRes) throw new Error('Не удалось обновить статус');
+
+          let bonusAmount = 0;
+
+          // 2. Начисляем бонусы для completed
+          if (newStatus === 'completed' && price > 0) {
+            // Ищем клиента по tg_id или телефону
+            let clients = [];
+            if (clientTg) {
+              clients = await API.fetch('clients', `master_id=eq.${CURRENT_MASTER_ID}&tg_user_id=eq.${clientTg}&select=id,bonus_balance`) || [];
+            }
+            if (!clients.length && clientPhone) {
+              clients = await API.fetch('clients', `master_id=eq.${CURRENT_MASTER_ID}&phone=eq.${encodeURIComponent(clientPhone)}&select=id,bonus_balance`) || [];
+            }
+
+            if (clients.length > 0) {
+              const client = clients[0];
+              bonusAmount = Math.round(price * 0.03 * 100) / 100; // 3%
+              const expiresAt = new Date();
+              expiresAt.setMonth(expiresAt.getMonth() + 3);
+
+              // Создаём транзакцию бонуса
+              await API.post('bonus_transactions', {
+                master_id: CURRENT_MASTER_ID,
+                client_id: client.id,
+                booking_id: bookingId,
+                amount: bonusAmount,
+                type: 'credit',
+                description: 'Начисление 3% за визит',
+                expires_at: expiresAt.toISOString(),
+              });
+
+              // Обновляем баланс клиента
+              const newBalance = parseFloat(client.bonus_balance || 0) + bonusAmount;
+              await API.patch('clients', `id=eq.${client.id}`, { bonus_balance: newBalance });
+
+              // Помечаем запись как bonus_credited
+              await API.patch('bookings', `id=eq.${bookingId}`, { bonus_credited: true });
+            }
+          }
 
           haptic('notification', action === 'completed' ? 'success' : 'warning');
 
-          if (data.bonus > 0) {
-            alert(`Визит подтверждён! Клиенту начислено ${data.bonus} ₽ бонусов (3%)`);
+          if (bonusAmount > 0) {
+            alert(`Визит подтверждён! Клиенту начислено ${bonusAmount} ₽ бонусов (3%)`);
           } else if (action === 'completed') {
             alert('Визит подтверждён!');
+          } else {
+            alert('Отмечено: клиент не пришёл');
           }
 
           await loadMasterTabData('bookings');
