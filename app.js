@@ -2664,8 +2664,12 @@ function bindEvents(screenName, container) {
           try {
             const formData = new FormData();
             formData.append('photo', file);
+            const headers = {};
+            const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+            if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
             const resp = await fetch(`${API_BASE_URL}/api/v1/upload/${CURRENT_MASTER_ID}`, {
               method: 'POST',
+              headers,
               body: formData,
             });
             const data = await resp.json();
@@ -3875,7 +3879,7 @@ async function toggleNotificationPanel() {
         return `
           <div class="notification-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
             <div class="notif-title">${escapeHtml(n.title)}</div>
-            <div class="notif-body">${escapeHtml(body)}</div>
+            <div class="notif-body">${escapeHtml(body).replace(/\n/g, '<br>')}</div>
             ${actions}
             <div class="notif-time">${formatNotifTime(n.created_at)}</div>
           </div>`;
