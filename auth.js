@@ -19,6 +19,11 @@ function clearAuth() {
   localStorage.removeItem('beauty_auth');
 }
 
+function getAuthRole() {
+  const auth = getStoredAuth();
+  return auth?.user?.role || 'client';
+}
+
 // --- Проверка авторизации ---
 
 function getWebUser() {
@@ -125,12 +130,6 @@ function renderLoginScreen() {
       <div class="login-logo">💆‍♀️</div>
       <div class="login-title">Beauty Platform</div>
 
-      <div class="role-tabs" style="margin-bottom:20px">
-        <button class="role-tab active" id="loginTabClient">Клиент</button>
-        <button class="role-tab" id="loginTabMaster">Мастер</button>
-      </div>
-
-      <!-- Вход клиента (по звонку) -->
       <div id="clientLoginBlock">
         <div class="login-subtitle">Войдите, чтобы записаться на услуги</div>
 
@@ -167,9 +166,19 @@ function renderLoginScreen() {
           <button class="login-back-link" id="changePhoneBtn">Изменить номер</button>
         </div>
       </div>
+    </div>
+  `;
+}
 
-      <!-- Вход мастера (телефон + код, без звонка) -->
-      <div id="masterLoginBlock" style="display:none">
+// --- Рендер экрана входа мастера (отдельная страница) ---
+
+function renderMasterLoginScreen() {
+  return `
+    <div class="login-screen">
+      <div class="login-logo">💆‍♀️</div>
+      <div class="login-title">Вход для мастера</div>
+
+      <div id="masterLoginBlock">
         <div class="login-subtitle">Войдите по номеру телефона и коду доступа</div>
         <div class="login-input-group">
           <label class="login-label">Номер телефона</label>
@@ -289,16 +298,15 @@ function initLoginHandlers(onSuccess) {
         const result = await verifyOtp(currentPhone, code);
 
         if (result.ok) {
-          // Сохраняем имя клиента в auth-данные
-          const nameInput = document.getElementById('loginName');
-          const clientName = nameInput ? nameInput.value.trim() : '';
-          if (clientName) {
-            const auth = getStoredAuth();
-            if (auth) {
-              if (!auth.user) auth.user = {};
-              auth.user.name = clientName;
-              saveAuth(auth);
-            }
+          // Сохраняем имя и роль клиента в auth-данные
+          const auth = getStoredAuth();
+          if (auth) {
+            if (!auth.user) auth.user = {};
+            auth.user.role = 'client';
+            const nameInput = document.getElementById('loginName');
+            const clientName = nameInput ? nameInput.value.trim() : '';
+            if (clientName) auth.user.name = clientName;
+            saveAuth(auth);
           }
           onSuccess(result.user);
         } else {
@@ -356,30 +364,12 @@ function initLoginHandlers(onSuccess) {
     }, 1000);
   }
 
-  // --- Переключение вкладок Клиент / Мастер ---
-  const tabClient = document.getElementById('loginTabClient');
-  const tabMaster = document.getElementById('loginTabMaster');
-  const clientBlock = document.getElementById('clientLoginBlock');
-  const masterBlock = document.getElementById('masterLoginBlock');
+}
 
-  if (tabClient && tabMaster && clientBlock && masterBlock) {
-    tabClient.addEventListener('click', () => {
-      tabClient.classList.add('active');
-      tabMaster.classList.remove('active');
-      clientBlock.style.display = '';
-      masterBlock.style.display = 'none';
-    });
-    tabMaster.addEventListener('click', () => {
-      tabMaster.classList.add('active');
-      tabClient.classList.remove('active');
-      clientBlock.style.display = 'none';
-      masterBlock.style.display = '';
-      const mp = document.getElementById('masterLoginPhone');
-      if (mp) setTimeout(() => mp.focus(), 200);
-    });
-  }
+// --- Обработчики экрана входа мастера ---
 
-  // --- Маска телефона для мастера ---
+function initMasterLoginHandlers(onSuccess) {
+  // Маска телефона для мастера
   const masterPhone = document.getElementById('masterLoginPhone');
   if (masterPhone) {
     masterPhone.addEventListener('input', () => {
@@ -387,7 +377,6 @@ function initLoginHandlers(onSuccess) {
     });
   }
 
-  // --- Вход мастера по телефону + коду ---
   const masterBtn2 = document.getElementById('masterLoginBtn2');
   const masterCode2 = document.getElementById('masterLoginCode');
   const masterErr = document.getElementById('masterLoginError');
@@ -418,7 +407,12 @@ function initLoginHandlers(onSuccess) {
         });
         const data = await res.json();
         if (data.ok) {
-          if (typeof saveAuth === 'function') saveAuth(data);
+          // Сохраняем роль мастера
+          if (typeof saveAuth === 'function') {
+            if (!data.user) data.user = {};
+            data.user.role = 'master';
+            saveAuth(data);
+          }
           onSuccess(data.user || { phone, source: 'web' });
         } else {
           masterErr.textContent = data.error || 'Неверный телефон или код';

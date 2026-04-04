@@ -112,6 +112,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderScreen('superadmin');
     return;
   }
+  if (pageParamEarly === 'master-login') {
+    // Если мастер уже авторизован — перенаправляем на главную с панелью
+    if (getCurrentUser() && getAuthRole() === 'master') {
+      // Продолжаем обычную загрузку — мастер увидит панель
+    } else {
+      // Показываем экран входа мастера
+      document.getElementById('app').innerHTML = renderMasterLoginScreen();
+      initMasterLoginHandlers(() => { location.reload(); });
+      return;
+    }
+  }
 
   createTabBar();
 
@@ -229,13 +240,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!localStorage.getItem('onboardingDone')) {
     showOnboarding();
   } else {
-    // Если вошедший пользователь — владелец этого профиля мастера,
-    // сразу предлагаем ввести код мастера
-    const curUser = getCurrentUser();
-    const isMasterOwner = curUser && curUser.phone && MASTER && MASTER.phone &&
-      curUser.phone.replace(/\D/g, '').slice(-10) === MASTER.phone.replace(/\D/g, '').slice(-10);
-    if (isMasterOwner && !state.masterUnlocked) {
-      navigateTo('masterLogin');
+    // Если мастер вошёл через ?page=master-login — сразу открываем панель
+    const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+    if (role === 'master') {
+      state.masterUnlocked = true;
+      await loadMasterTabData('bookings');
+      navigateTo('masterPanel');
     } else {
       renderScreen('home');
       showOfferIfNeeded();
@@ -464,11 +474,6 @@ function renderHome() {
   const initials = MASTER.name.split(' ').map(w => w[0]).join('').slice(0, 2);
 
   return `
-    <div class="role-tabs">
-      <button class="role-tab active" id="roleClient">Клиент</button>
-      <button class="role-tab" id="roleMaster">Мастер</button>
-    </div>
-
     ${MASTER.avatar ? `
     <div class="master-hero" style="background-image:url('${MASTER.avatar}')">
       <div class="master-hero-overlay">
@@ -642,11 +647,6 @@ function renderMasterLogin() {
   const isLoggedIn = !!getCurrentUser();
   return `
     <div class="history-screen">
-      <div class="role-tabs">
-        <button class="role-tab" id="roleClientFromLogin">Клиент</button>
-        <button class="role-tab active">Мастер</button>
-      </div>
-
       <div class="master-login">
         <div class="master-login-icon">🔒</div>
         <div class="master-login-title">Вход для мастера</div>
@@ -672,10 +672,6 @@ function renderMasterPanel() {
   const tab = state.masterTab || 'bookings';
 
   const tabsHTML = `
-    <div class="role-tabs">
-      <button class="role-tab" id="roleClientFromMaster">Клиент</button>
-      <button class="role-tab active" id="roleMasterFromMaster">Мастер</button>
-    </div>
     <div class="admin-tabs">
       <button class="admin-tab ${tab === 'bookings' ? 'active' : ''}" data-tab="bookings">Записи</button>
       <button class="admin-tab ${tab === 'services' ? 'active' : ''}" data-tab="services">Услуги</button>
@@ -2193,18 +2189,6 @@ function bindEvents(screenName, container) {
         });
       }
 
-      // Вкладка «Мастер»
-      const roleMasterBtn = container.querySelector('#roleMaster');
-      if (roleMasterBtn) {
-        roleMasterBtn.addEventListener('click', async () => {
-          if (state.masterUnlocked) {
-            await loadMasterTabData(state.masterTab || 'bookings');
-            navigateTo('masterPanel');
-          } else {
-            navigateTo('masterLogin');
-          }
-        });
-      }
       break;
 
     case 'history':
@@ -2277,12 +2261,6 @@ function bindEvents(screenName, container) {
       }
 
       // Вкладка «Клиент» из экрана входа
-      const backFromLogin = container.querySelector('#roleClientFromLogin');
-      if (backFromLogin) {
-        backFromLogin.addEventListener('click', () => {
-          navigateTo('home');
-        });
-      }
       break;
 
     case 'register':
@@ -2452,15 +2430,6 @@ function bindEvents(screenName, container) {
       break;
 
     case 'masterPanel':
-      // Вкладка «Клиент»
-      const roleClientBtn = container.querySelector('#roleClientFromMaster');
-      if (roleClientBtn) {
-        roleClientBtn.addEventListener('click', () => {
-          state.masterUnlocked = false;
-          navigateTo('home');
-        });
-      }
-
       // Вкладки админки
       container.querySelectorAll('.admin-tab').forEach(tab => {
         tab.addEventListener('click', async () => {
@@ -3826,8 +3795,16 @@ function createNotificationBell() {
 }
 
 async function refreshNotifCount() {
-  if (typeof getUnreadNotifCount !== 'function') return;
-  const count = await getUnreadNotifCount();
+  if (typeof loadNotifications !== 'function') return;
+  let notifs = await loadNotifications();
+  // Фильтруем по роли
+  const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+  if (role === 'master') {
+    notifs = (notifs || []).filter(n => ['new_booking', 'status_change', 'reminder', 'broadcast'].includes(n.type));
+  } else {
+    notifs = (notifs || []).filter(n => ['booking_confirmed', 'reminder', 'broadcast'].includes(n.type));
+  }
+  const count = (notifs || []).filter(n => !n.read).length;
   const bell = document.getElementById('notifBell');
   if (!bell) return;
   const existing = bell.querySelector('.notif-badge');
@@ -3853,9 +3830,16 @@ async function toggleNotificationPanel() {
   panel.innerHTML = '<div class="notif-panel-header"><span>Уведомления</span><button id="notifMarkAll" class="notif-mark-all">Прочитать все</button></div><div class="notif-panel-list" id="notifList">Загрузка...</div>';
   document.body.appendChild(panel);
 
-  // Загружаем уведомления
+  // Загружаем уведомления с фильтрацией по роли
   if (typeof loadNotifications === 'function') {
-    const notifs = await loadNotifications();
+    let notifs = await loadNotifications();
+    // Фильтруем по роли: клиент не видит уведомления мастера и наоборот
+    const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+    if (role === 'master') {
+      notifs = (notifs || []).filter(n => ['new_booking', 'status_change', 'reminder', 'broadcast'].includes(n.type));
+    } else {
+      notifs = (notifs || []).filter(n => ['booking_confirmed', 'reminder', 'broadcast'].includes(n.type));
+    }
     const list = document.getElementById('notifList');
     if (!notifs || notifs.length === 0) {
       list.innerHTML = '<div class="notif-empty">Нет уведомлений</div>';
