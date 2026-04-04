@@ -259,23 +259,25 @@ async function loadClient(masterId, tgUserId, phone) {
 
 // Загрузить записи клиента (для экрана «Мои записи»)
 async function loadClientBookings(masterId, tgUserId, phone) {
+  let results = [];
   if (tgUserId) {
-    const result = await API.fetch('bookings',
+    const r = await API.fetch('bookings',
       `master_id=eq.${masterId}&client_tg_id=eq.${tgUserId}&order=date.desc,time.desc&select=*,services(name)`
     );
-    if (result && result.length > 0) return result;
+    if (r && r.length > 0) results = r;
   }
-  if (phone) {
-    // Нормализуем: берём последние 10 цифр и пробуем разные форматы
+  if (results.length === 0 && phone) {
+    // Пробуем разные форматы телефона (БД хранит в разных форматах)
     const digits = phone.replace(/\D/g, '').slice(-10);
-    const variants = [phone, '+7' + digits, '7' + digits, '8' + digits];
-    const unique = [...new Set(variants)];
-    const encoded = unique.map(v => encodeURIComponent(v)).join(',');
-    return API.fetch('bookings',
-      `master_id=eq.${masterId}&client_phone=in.(${encoded})&order=date.desc,time.desc&select=*,services(name)`
-    ) || [];
+    const variants = [...new Set([phone, '7' + digits, '+7' + digits, '8' + digits])];
+    for (const variant of variants) {
+      const r = await API.fetch('bookings',
+        `master_id=eq.${masterId}&client_phone=eq.${encodeURIComponent(variant)}&order=date.desc,time.desc&select=*,services(name)`
+      );
+      if (r && r.length > 0) { results = r; break; }
+    }
   }
-  return [];
+  return results;
 }
 
 
@@ -757,6 +759,10 @@ async function getUnreadNotifCount() {
 
 async function markNotificationRead(id) {
   return API.patch('notifications', `id=eq.${id}`, { read: true });
+}
+
+async function markBookingRemindersRead(bookingId) {
+  return API.patch('notifications', `booking_id=eq.${bookingId}&type=eq.reminder&read=eq.false`, { read: true });
 }
 
 async function markAllNotificationsRead() {

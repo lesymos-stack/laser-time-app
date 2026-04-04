@@ -1220,19 +1220,17 @@ function renderHistory() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const all = state.clientBookings || [];
+  const all = (state.clientBookings || []).map(b => {
+    // Нормализуем дату из ISO формата "2026-04-05T00:00:00.000Z" → "2026-04-05"
+    if (b.date && b.date.includes('T')) b.date = b.date.split('T')[0];
+    return b;
+  });
   const upcoming = all.filter(b => {
     if (b.status === 'cancelled' || b.status === 'no_show') return false;
-    const d = parseDate(b.date);
-    return d >= today || b.status === 'pending' || b.status === 'confirmed';
-  }).filter(b => {
     const d = parseDate(b.date);
     return d >= today;
   });
   const past = all.filter(b => {
-    const d = parseDate(b.date);
-    return d < today || b.status === 'completed' || b.status === 'cancelled' || b.status === 'no_show';
-  }).filter(b => {
     const d = parseDate(b.date);
     return d < today || b.status === 'completed';
   });
@@ -3848,9 +3846,17 @@ async function toggleNotificationPanel() {
     if (!notifs || notifs.length === 0) {
       list.innerHTML = '<div class="notif-empty">Нет уведомлений</div>';
     } else {
+      // Дедуплицируем reminder: оставляем кнопки только на последнем (первом в списке) для каждой записи
+      const seenBookingReminders = new Set();
       list.innerHTML = notifs.map(n => {
-        // Кнопки только в напоминании за 24ч (reminder) — не при записи (booking_confirmed)
-        const hasActions = n.type === 'reminder' && n.booking_id;
+        // Кнопки только на непрочитанном reminder + только один раз на запись
+        let hasActions = false;
+        if (n.type === 'reminder' && n.booking_id && !n.read) {
+          if (!seenBookingReminders.has(n.booking_id)) {
+            hasActions = true;
+            seenBookingReminders.add(n.booking_id);
+          }
+        }
         const actions = hasActions ? `
           <div class="notif-actions" data-booking-id="${n.booking_id}" data-notif-id="${n.id}">
             <button class="notif-action-btn confirm" data-action="confirmed">Подтвердить</button>
@@ -3888,7 +3894,8 @@ async function toggleNotificationPanel() {
               // Отменяем и переходим к записи
               await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
               actionDiv.innerHTML = '<div class="notif-action-done">Запись отменена. Выберите новую дату.</div>';
-              if (typeof markNotificationRead === 'function') await markNotificationRead(notifId);
+              if (typeof markBookingRemindersRead === 'function') await markBookingRemindersRead(bookingId);
+              else if (typeof markNotificationRead === 'function') await markNotificationRead(notifId);
               // Переходим на главную для перезаписи
               setTimeout(() => {
                 const panel = document.getElementById('notificationPanel');
@@ -3899,7 +3906,8 @@ async function toggleNotificationPanel() {
               await API.patch('bookings', `id=eq.${bookingId}`, { status: action });
               const label = action === 'confirmed' ? 'Запись подтверждена!' : 'Запись отменена';
               actionDiv.innerHTML = `<div class="notif-action-done">${label}</div>`;
-              if (typeof markNotificationRead === 'function') await markNotificationRead(notifId);
+              if (typeof markBookingRemindersRead === 'function') await markBookingRemindersRead(bookingId);
+              else if (typeof markNotificationRead === 'function') await markNotificationRead(notifId);
             }
             refreshNotifCount();
           } catch (err) {
