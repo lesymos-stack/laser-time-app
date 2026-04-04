@@ -1903,6 +1903,10 @@ async function submitBooking() {
 
   // Помечаем слот как занятый (сразу, чтобы UI обновился)
   BOOKED_SLOTS.push(`${state.selectedDate}_${state.selectedTime}`);
+  // Обновляем BUSY_INTERVALS чтобы учесть длительность новой записи
+  if (!BUSY_INTERVALS[state.selectedDate]) BUSY_INTERVALS[state.selectedDate] = [];
+  const startMin = timeToMinutes(state.selectedTime);
+  BUSY_INTERVALS[state.selectedDate].push({ start: startMin, end: startMin + service.duration });
   if (CURRENT_MASTER_ID) {
     try {
       const bookingData = {
