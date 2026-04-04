@@ -397,9 +397,7 @@ function updateTelegramButtons(screenName) {
       tg.MainButton.onClick(mainButtonHandler);
       break;
     case 'success':
-      tg.MainButton.setText('ЗАКРЫТЬ');
-      tg.MainButton.show();
-      tg.MainButton.onClick(mainButtonHandler);
+      tg.MainButton.hide();
       break;
   }
 }
@@ -4043,12 +4041,5 @@ function updateFallbackBackButton(screenName) {
     document.body.appendChild(backBtn);
   }
 
-  // Кнопка действия внизу — только вне Telegram и только для success
-  if (!tg && screenName === 'success') {
-    const mainBtn = document.createElement('button');
-    mainBtn.className = 'fallback-main-btn';
-    mainBtn.textContent = 'ЗАКРЫТЬ';
-    mainBtn.addEventListener('click', () => navigateTo('home', false));
-    document.body.appendChild(mainBtn);
-  }
+  // Кнопка «ЗАКРЫТЬ» на success убрана — есть «На главную»
 }
