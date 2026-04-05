@@ -114,6 +114,12 @@ html.web-theme .category-card {
   min-height: 120px;
 }
 
+/* Web-theme: фото категории — полностью помещается в карточке (без обрезки) */
+html.web-theme .category-card.has-photo {
+  background-size: contain;
+  background-color: var(--web-surface);
+}
+
 /* Web-theme: розовый акцент на статистике */
 html.web-theme .hero-stats {
   background: transparent;
