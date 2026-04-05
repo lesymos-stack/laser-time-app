@@ -113,13 +113,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   if (pageParamEarly === 'master-login') {
-    // Если мастер уже авторизован — перенаправляем на главную с панелью
+    // Если мастер уже авторизован — редиректим на его собственную ссылку
     if (getCurrentUser() && getAuthRole() === 'master') {
-      // Продолжаем обычную загрузку — мастер увидит панель
+      const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+      const slug = auth?.user?.slug;
+      if (slug) {
+        location.replace('/?master=' + slug);
+        return;
+      }
+      // Нет slug — fallback: продолжаем загрузку (может не сработать)
     } else {
       // Показываем экран входа мастера
       document.getElementById('app').innerHTML = renderMasterLoginScreen();
-      initMasterLoginHandlers(() => { location.reload(); });
+      initMasterLoginHandlers((user) => {
+        // После успешного логина сразу редиректим на ?master=<slug>
+        const slug = user?.slug;
+        if (slug) {
+          location.replace('/?master=' + slug);
+        } else {
+          location.reload();
+        }
+      });
       return;
     }
   }
