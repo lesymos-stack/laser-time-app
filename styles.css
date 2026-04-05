@@ -126,8 +126,9 @@ html.web-theme .hero-stat-sep {
   background: var(--web-border);
 }
 
-/* Web-theme: делаем фон body тёмным */
-html.web-theme body {
+/* Web-theme: основной фон — #242582 (как в макете) */
+html.web-theme body,
+html.web-theme .screen {
   background-color: var(--tg-theme-bg-color);
 }
 
