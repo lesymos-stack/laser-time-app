@@ -212,7 +212,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('✅ Данные загружены');
     } else {
       // Мастер не найден — нет ?master= в URL, показываем лендинг платформы
-      document.getElementById('app').innerHTML = `
+      var debugInfo = window.__PWA_DEBUG__ || {};
+      var debugHTML = `<div style="position:fixed;top:0;left:0;right:0;background:#ff0;color:#000;padding:8px;font-size:11px;z-index:9999;font-family:monospace;word-break:break-all">PWA DEBUG:<br>slug: ${debugInfo.slug || 'NULL'}<br>auth: ${debugInfo.hasAuth ? 'YES' : 'NO'}<br>keys: ${(debugInfo.keys || []).join(',')}<br>url: ${debugInfo.url || ''}</div>`;
+      document.getElementById('app').innerHTML = debugHTML + `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;text-align:center;background:#f8f8f8">
           <div style="font-size:56px;margin-bottom:16px">💆‍♀️</div>
           <div style="font-size:24px;font-weight:700;margin-bottom:8px;color:#1a1a1a">Beauty Platform</div>
