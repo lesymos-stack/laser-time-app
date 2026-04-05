@@ -38,8 +38,8 @@
    Применяется ко всем клиентам, открывающим веб-версию
    ============================== */
 html.web-theme {
-  --tg-theme-bg-color: #1A1A5E !important;
-  --tg-theme-secondary-bg-color: #242582 !important;
+  --tg-theme-bg-color: #242582 !important;
+  --tg-theme-secondary-bg-color: #1A1A5E !important;
   --tg-theme-text-color: #FFFFFF !important;
   --tg-theme-hint-color: #99738E !important;
   --tg-theme-link-color: #F64C72 !important;
@@ -152,9 +152,9 @@ html.web-theme .promo-badge {
   margin-bottom: 6px;
 }
 
-/* Web-theme: таб-бар на несколько тонов светлее основного фона */
+/* Web-theme: таб-бар темнее основного фона (как в макете) */
 html.web-theme .tab-bar {
-  background: #242582;
+  background: #1A1A5E;
   border-top: 1px solid var(--web-border);
 }
 html.web-theme .promo-banner::after {
