@@ -131,6 +131,39 @@ html.web-theme body {
   background-color: var(--tg-theme-bg-color);
 }
 
+/* Web-theme: промо-баннер — розовый, скруглённый, как в макете */
+html.web-theme .promo-banner {
+  background: var(--web-accent);
+  border-radius: 18px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+}
+html.web-theme .promo-banner::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+/* Web-theme: скрываем кнопки "Выбрать дату" и "Абонементы" */
+html.web-theme .home-booking-section,
+html.web-theme .home-abonement-btn {
+  display: none !important;
+}
+
+/* Web-theme: делаем кнопку "Поделиться" в 2 раза короче, по центру */
+html.web-theme .home-share-btn {
+  max-width: 50%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* ==============================
    1. СБРОС И БАЗОВЫЕ СТИЛИ
    ============================== */
