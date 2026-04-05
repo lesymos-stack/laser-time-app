@@ -108,12 +108,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // PWA: если приложение открыто без ?master= и без ?page=, но есть сохранённый slug —
-  // редиректим пользователя на его мастера (чтобы он не видел лендинг)
+  // редиректим пользователя на его мастера (чтобы он не видел лендинг).
+  // Не проверяем валидность токена: даже если он истёк, загрузка страницы мастера
+  // сама обновит токен или покажет экран входа клиента. Главное — не лендинг.
   const pageParamCheck = new URLSearchParams(window.location.search).get('page');
   if (!currentSlug && !pageParamCheck) {
-    const savedAuthUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const savedMasterSlug = localStorage.getItem('current_master_slug');
-    if (savedAuthUser && savedMasterSlug) {
+    if (savedMasterSlug) {
       location.replace('/?master=' + savedMasterSlug);
       return;
     }

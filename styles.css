@@ -38,8 +38,8 @@
    Применяется ко всем клиентам, открывающим веб-версию
    ============================== */
 html.web-theme {
-  --tg-theme-bg-color: #242582 !important;
-  --tg-theme-secondary-bg-color: #1A1A5E !important;
+  --tg-theme-bg-color: #1A1A5E !important;
+  --tg-theme-secondary-bg-color: #242582 !important;
   --tg-theme-text-color: #FFFFFF !important;
   --tg-theme-hint-color: #99738E !important;
   --tg-theme-link-color: #F64C72 !important;
@@ -134,13 +134,28 @@ html.web-theme body {
 /* Web-theme: промо-баннер — розовый, скруглённый, как в макете */
 html.web-theme .promo-banner {
   background: var(--web-accent);
-  border-radius: 18px;
-  padding: 18px 20px;
+  border-radius: 16px;
+  padding: 12px 18px;
   position: relative;
   overflow: hidden;
-  max-width: 85%;
-  margin-left: auto;
-  margin-right: auto;
+}
+html.web-theme .promo-title {
+  font-size: 15px;
+}
+html.web-theme .promo-text {
+  font-size: 12px;
+  margin-top: 2px;
+}
+html.web-theme .promo-badge {
+  padding: 2px 7px;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+/* Web-theme: таб-бар на несколько тонов светлее основного фона */
+html.web-theme .tab-bar {
+  background: #242582;
+  border-top: 1px solid var(--web-border);
 }
 html.web-theme .promo-banner::after {
   content: '';
