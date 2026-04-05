@@ -184,8 +184,8 @@ img {
 .master-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 20px 16px;
+  gap: 18px;
+  padding: 24px 16px;
   margin: 0 -16px;
   background: var(--tg-theme-bg-color, #ffffff);
   border-bottom-left-radius: 16px;
@@ -193,14 +193,14 @@ img {
 }
 
 .master-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 112px;
+  height: 112px;
+  border-radius: 16px;
   background: var(--tg-theme-button-color, #007AFF);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 40px;
   font-weight: 600;
   color: var(--tg-theme-button-text-color, #ffffff);
   flex-shrink: 0;
