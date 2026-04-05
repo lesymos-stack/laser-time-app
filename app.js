@@ -535,7 +535,11 @@ function renderHome() {
   return `
     ${MASTER.avatar ? `
     <div class="master-hero-v2" style="background-image:url('${MASTER.avatar}')">
-      <button class="hero-bell" id="heroBell" aria-label="Уведомления">🔔</button>
+      <div class="hero-icon-bar">
+        <a href="tel:${MASTER.phone || ''}" class="hero-icon-btn hero-icon-call" aria-label="Позвонить">📞</a>
+        <a href="${MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, '')}" target="_blank" class="hero-icon-btn hero-icon-write" aria-label="Написать">💬</a>
+        <button class="hero-icon-btn hero-bell" id="heroBell" aria-label="Уведомления">🔔</button>
+      </div>
       <div class="master-hero-overlay">
         <div class="master-hero-name">${MASTER.name}</div>
         <div class="master-hero-desc">${MASTER.description}</div>
