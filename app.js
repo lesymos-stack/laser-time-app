@@ -176,6 +176,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           const bonusData = await loadClientBonus(CURRENT_MASTER_ID, tgId, currentUser.phone);
           CLIENT_BONUS = bonusData.balance;
         } catch (e) { CLIENT_BONUS = 0; }
+
+        // Создаём запись клиента в БД мастера, если её нет (для веб-регистраций)
+        const roleNow = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+        if (roleNow === 'client' && currentUser.phone && typeof upsertClient === 'function') {
+          try {
+            const clientData = currentUser.source === 'telegram'
+              ? { id: currentUser.id, first_name: currentUser.name || '', username: currentUser.username || '' }
+              : { id: 0, first_name: currentUser.name || '', username: '' };
+            await upsertClient(CURRENT_MASTER_ID, clientData, currentUser.phone);
+          } catch (e) { console.warn('upsertClient on load failed:', e); }
+        }
       }
 
       // Автовход мастера отключён — требуется ввод кода при каждом визите
@@ -262,8 +273,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
     if (role === 'master') {
       state.masterUnlocked = true;
+      state.screenHistory = [];
+      state.currentScreen = 'masterPanel';
       await loadMasterTabData('bookings');
-      navigateTo('masterPanel');
+      renderScreen('masterPanel');
+      updateTelegramButtons('masterPanel');
     } else {
       renderScreen('home');
       showOfferIfNeeded();
@@ -401,8 +415,8 @@ function updateTelegramButtons(screenName) {
 
   if (!tg) return;
 
-  // BackButton — скрываем на табовых экранах и success
-  if (TAB_SCREENS.includes(screenName) || screenName === 'success') {
+  // BackButton — скрываем на табовых экранах, success и панели мастера
+  if (TAB_SCREENS.includes(screenName) || screenName === 'success' || screenName === 'masterPanel') {
     tg.BackButton.hide();
   } else {
     tg.BackButton.show();
@@ -1972,6 +1986,21 @@ async function submitBooking() {
             : { id: user.id, first_name: clientName, username: '' };
           upsertClient(CURRENT_MASTER_ID, clientData, phone);
         }
+        // Создаём уведомления — мастеру о новой записи, клиенту о подтверждении
+        try {
+          const bookingId = Array.isArray(result) ? result[0]?.id : result?.id;
+          const dateStr = formatDate ? formatDate(state.selectedDate) : state.selectedDate;
+          const masterNotifBody = `${service.name}\n${dateStr} в ${state.selectedTime}\nКлиент: ${clientName || 'без имени'}\nТелефон: ${phone || '—'}\nСтоимость: ${finalPrice} ₽`;
+          const clientNotifBody = `${service.name}\n${dateStr} в ${state.selectedTime}\nМастер: ${MASTER.name}\nСтоимость: ${finalPrice} ₽`;
+          if (MASTER.phone && typeof createNotification === 'function') {
+            const masterPhoneDigits = MASTER.phone.replace(/\D/g, '');
+            await createNotification(masterPhoneDigits, CURRENT_MASTER_ID, 'new_booking', 'Новая запись', masterNotifBody, bookingId);
+          }
+          if (phone && typeof createNotification === 'function') {
+            const clientPhoneDigits = phone.replace(/\D/g, '');
+            await createNotification(clientPhoneDigits, CURRENT_MASTER_ID, 'booking_confirmed', 'Вы записаны!', clientNotifBody, bookingId);
+          }
+        } catch (e) { console.warn('Создание уведомлений не удалось:', e); }
         // Списываем бонусы
         const tgIdForBonus = user?.source === 'telegram' ? user.id : 0;
         if (bonusToUse > 0 && user) {
@@ -3536,8 +3565,11 @@ function showOnboarding() {
     const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
     if (role === 'master') {
       state.masterUnlocked = true;
+      state.screenHistory = [];
+      state.currentScreen = 'masterPanel';
       await loadMasterTabData('bookings');
-      navigateTo('masterPanel');
+      renderScreen('masterPanel');
+      updateTelegramButtons('masterPanel');
     } else {
       renderScreen('home');
       showOfferIfNeeded();
@@ -4092,8 +4124,8 @@ function updateFallbackBackButton(screenName) {
   // Удаляем старые fallback-кнопки
   document.querySelectorAll('.fallback-back-btn, .fallback-main-btn').forEach(el => el.remove());
 
-  // Кнопка «Назад» — скрываем на табовых экранах и успехе
-  if (!TAB_SCREENS.includes(screenName) && screenName !== 'success') {
+  // Кнопка «Назад» — скрываем на табовых экранах, успехе и панели мастера
+  if (!TAB_SCREENS.includes(screenName) && screenName !== 'success' && screenName !== 'masterPanel') {
     const backBtn = document.createElement('button');
     backBtn.className = 'fallback-back-btn';
     backBtn.textContent = '←';

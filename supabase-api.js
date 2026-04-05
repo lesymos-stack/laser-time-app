@@ -775,14 +775,16 @@ async function markAllNotificationsRead() {
   return API.patch('notifications', `user_phone=eq.${phone}&read=eq.false`, { read: true });
 }
 
-async function createNotification(userPhone, masterId, type, title, body) {
-  return API.post('notifications', {
+async function createNotification(userPhone, masterId, type, title, body, bookingId) {
+  const payload = {
     user_phone: userPhone,
     master_id: masterId,
     type: type,
     title: title,
     body: body,
-  });
+  };
+  if (bookingId) payload.booking_id = bookingId;
+  return API.post('notifications', payload);
 }
 
 // === Супер-админ ===
