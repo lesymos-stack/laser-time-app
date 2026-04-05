@@ -131,6 +131,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (slug) {
           // Сохраняем slug чтобы при редиректе auth не обнулился проверкой смены мастера
           localStorage.setItem('current_master_slug', slug);
+          // Мастеру не нужен клиентский онбординг — помечаем как пройденный
+          localStorage.setItem('onboardingDone', '1');
           location.replace('/?master=' + slug);
         } else {
           location.reload();
@@ -3526,12 +3528,20 @@ function showOnboarding() {
     </div>
   `;
 
-  document.getElementById('onboardingStartBtn').addEventListener('click', () => {
+  document.getElementById('onboardingStartBtn').addEventListener('click', async () => {
     localStorage.setItem('onboardingDone', '1');
     requestPushPermission(); // вызываем здесь — браузер требует действия пользователя
     document.getElementById('app').innerHTML = '';
-    renderScreen('home');
-    showOfferIfNeeded();
+    // Мастер — сразу в панель, клиент — на главную
+    const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+    if (role === 'master') {
+      state.masterUnlocked = true;
+      await loadMasterTabData('bookings');
+      navigateTo('masterPanel');
+    } else {
+      renderScreen('home');
+      showOfferIfNeeded();
+    }
   });
 }
 
