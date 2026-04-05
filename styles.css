@@ -34,6 +34,28 @@
 }
 
 /* ==============================
+   ВЕБ-ТЕМА: тёмная сине-фиолетовая палитра (только вне Telegram)
+   Применяется ко всем клиентам, открывающим веб-версию
+   ============================== */
+html.web-theme {
+  --tg-theme-bg-color: #242582 !important;
+  --tg-theme-secondary-bg-color: #1A1A5E !important;
+  --tg-theme-text-color: #FFFFFF !important;
+  --tg-theme-hint-color: #99738E !important;
+  --tg-theme-link-color: #F64C72 !important;
+  --tg-theme-button-color: #F64C72 !important;
+  --tg-theme-button-text-color: #FFFFFF !important;
+  --tg-theme-destructive-text-color: #F64C72 !important;
+  /* Дополнительные переменные палитры */
+  --web-accent: #F64C72;
+  --web-border: #553D67;
+  --web-muted: #99738E;
+  --web-light: #C9C4E0;
+  --web-surface: #1A1A5E;
+  --web-deep: #2F2FA2;
+}
+
+/* ==============================
    1. СБРОС И БАЗОВЫЕ СТИЛИ
    ============================== */
 

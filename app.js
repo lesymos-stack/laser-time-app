@@ -22,6 +22,11 @@
 
 const tg = window.Telegram?.WebApp;
 
+// Если открыто не в Telegram — включаем тёмную палитру веб-темы
+if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) {
+  document.documentElement.classList.add('web-theme');
+}
+
 // Текущий пользователь (Telegram или веб)
 function getCurrentUser() {
   if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
