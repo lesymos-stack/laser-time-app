@@ -16,6 +16,20 @@
   <!-- SEO -->
   <meta name="description" content="Онлайн-запись на услуги красоты. Выберите услугу, дату и время.">
 
+  <!-- PWA: редирект на мастера ДО загрузки любых скриптов и SW -->
+  <script>
+    (function() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('master') || params.get('page')) return;
+        var saved = localStorage.getItem('current_master_slug');
+        if (saved) {
+          location.replace('/?master=' + saved);
+        }
+      } catch (e) {}
+    })();
+  </script>
+
   <!-- Telegram Web App SDK (только внутри Telegram) -->
   <script>
     if (window.TelegramWebviewProxy || location.hash.includes('tgWebAppData') || navigator.userAgent.includes('TelegramBot')) {
