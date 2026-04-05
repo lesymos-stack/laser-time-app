@@ -148,6 +148,7 @@ function renderLoginScreen() {
           <button class="login-btn" id="sendCodeBtn">Позвонить мне</button>
           <div style="font-size:13px;color:#999;margin-top:8px;line-height:1.4">Вам поступит звонок. Введите 4 последние цифры входящего номера.</div>
           <div id="loginError" class="login-error"></div>
+          <a href="/?page=master-login" style="display:block;text-align:center;margin-top:18px;font-size:14px;color:#2196F3;text-decoration:none;font-weight:500">Я мастер — войти с кодом</a>
         </div>
 
         <div id="loginStep2" style="display:none">

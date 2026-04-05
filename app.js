@@ -129,6 +129,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // После успешного логина сразу редиректим на ?master=<slug>
         const slug = user?.slug;
         if (slug) {
+          // Сохраняем slug чтобы при редиректе auth не обнулился проверкой смены мастера
+          localStorage.setItem('current_master_slug', slug);
           location.replace('/?master=' + slug);
         } else {
           location.reload();
