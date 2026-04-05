@@ -186,6 +186,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       CURRENT_MASTER_ID = data.master.id;
       MASTER_CODE = data.master.master_code || '0000';
 
+      // Динамический манифест: при "Добавить на экран Домой" из страницы мастера
+      // PWA установится со start_url=/?master=<slug>, а не /?source=pwa
+      try {
+        const dynamicManifest = {
+          name: (MASTER.name || 'Beauty Platform') + ' — Онлайн-запись',
+          short_name: MASTER.name || 'Beauty',
+          description: 'Онлайн-запись на услуги красоты',
+          start_url: '/?master=' + currentSlug,
+          scope: '/',
+          display: 'standalone',
+          orientation: 'portrait',
+          theme_color: '#242582',
+          background_color: '#242582',
+          lang: 'ru',
+          icons: [
+            { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+            { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          ]
+        };
+        const blob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
+        const manifestUrl = URL.createObjectURL(blob);
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) manifestLink.setAttribute('href', manifestUrl);
+      } catch (e) { console.warn('dynamic manifest failed:', e); }
+
       // Загружаем бонусный баланс клиента
       const currentUser = getCurrentUser();
       if (currentUser && CURRENT_MASTER_ID) {
