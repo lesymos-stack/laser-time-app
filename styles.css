@@ -181,11 +181,107 @@ img {
   text-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
+/* Новая hero-шапка v2: фото 55vh + текст поверх + колокольчик в углу */
+.master-hero-v2 {
+  margin: 0 -16px;
+  height: 55vh;
+  min-height: 340px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  overflow: hidden;
+}
+
+.master-hero-v2 .master-hero-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 16px 20px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 60%, transparent 100%);
+}
+
+.master-hero-v2 .master-hero-name {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  letter-spacing: -0.3px;
+}
+
+.master-hero-v2 .master-hero-desc {
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+  margin-top: 4px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.hero-bell {
+  position: absolute;
+  right: 16px;
+  bottom: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.95);
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Прячем плавающий колокольчик, когда активен колокольчик в hero */
+body.has-hero-bell #notifBellContainer {
+  display: none;
+}
+
+/* Строка статистики под hero: "8000 работ | 16 лет опыт" */
+.hero-stats {
+  margin: 0 -16px;
+  padding: 16px 16px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.hero-stat {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.hero-stat-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: #b8956a;
+  letter-spacing: -0.3px;
+}
+
+.hero-stat-label {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-top: 2px;
+}
+
+.hero-stat-sep {
+  width: 1px;
+  height: 32px;
+  background: rgba(0,0,0,0.1);
+}
+
 .master-header {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 24px 16px;
+  gap: 14px;
+  padding: 20px 16px;
   margin: 0 -16px;
   background: var(--tg-theme-bg-color, #ffffff);
   border-bottom-left-radius: 16px;
@@ -193,14 +289,14 @@ img {
 }
 
 .master-avatar {
-  width: 112px;
-  height: 112px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
   background: var(--tg-theme-button-color, #007AFF);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--tg-theme-button-text-color, #ffffff);
   flex-shrink: 0;

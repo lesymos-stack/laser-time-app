@@ -324,6 +324,8 @@ function goBack() {
 
 // Рендер экрана
 function renderScreen(screenName, isBack = false) {
+  // Сбрасываем флаг hero-колокольчика — переустановится в bindEvents, если home с hero
+  document.body.classList.remove('has-hero-bell');
   const app = document.getElementById('app');
   const oldScreen = app.querySelector('.screen.active');
 
@@ -487,14 +489,24 @@ function renderHome() {
   // Инициалы для аватара
   const initials = MASTER.name.split(' ').map(w => w[0]).join('').slice(0, 2);
 
+  const statsHTML = (MASTER.works_count > 0 || MASTER.years_experience > 0) ? `
+    <div class="hero-stats">
+      ${MASTER.works_count > 0 ? `<div class="hero-stat"><div class="hero-stat-num">${MASTER.works_count}</div><div class="hero-stat-label">работ</div></div>` : ''}
+      ${(MASTER.works_count > 0 && MASTER.years_experience > 0) ? `<div class="hero-stat-sep"></div>` : ''}
+      ${MASTER.years_experience > 0 ? `<div class="hero-stat"><div class="hero-stat-num">${MASTER.years_experience} лет</div><div class="hero-stat-label">опыт</div></div>` : ''}
+    </div>
+  ` : '';
+
   return `
     ${MASTER.avatar ? `
-    <div class="master-hero" style="background-image:url('${MASTER.avatar}')">
+    <div class="master-hero-v2" style="background-image:url('${MASTER.avatar}')">
+      <button class="hero-bell" id="heroBell" aria-label="Уведомления">🔔</button>
       <div class="master-hero-overlay">
         <div class="master-hero-name">${MASTER.name}</div>
         <div class="master-hero-desc">${MASTER.description}</div>
       </div>
     </div>
+    ${statsHTML}
     ` : `
     <div class="master-header">
       <div class="master-avatar">${initials}</div>
@@ -503,6 +515,7 @@ function renderHome() {
         <div class="master-desc">${MASTER.description}</div>
       </div>
     </div>
+    ${statsHTML}
     `}
 
     <div class="contact-buttons">
@@ -1081,6 +1094,17 @@ function renderMasterProfile() {
 
       <label class="admin-label">Приветственное сообщение (в боте)</label>
       <textarea id="profileWelcome" class="admin-input admin-textarea" rows="2" placeholder="Текст при нажатии /start в боте">${m.welcome_text || ''}</textarea>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label class="admin-label">Кол-во работ</label>
+          <input type="number" id="profileWorks" class="admin-input" value="${m.works_count || 0}" min="0" placeholder="1500" />
+        </div>
+        <div style="flex:1;">
+          <label class="admin-label">Лет опыта</label>
+          <input type="number" id="profileYears" class="admin-input" value="${m.years_experience || 0}" min="0" placeholder="5" />
+        </div>
+      </div>
 
       <label class="admin-label">Код доступа к панели мастера</label>
       <input type="text" id="profileCode" class="admin-input" value="${(m.master_code || '').replace(/"/g, '&quot;')}" placeholder="4 цифры" maxlength="4" />
@@ -2102,6 +2126,14 @@ function bindPhotoDeleteButtons(container) {
 function bindEvents(screenName, container) {
   switch (screenName) {
     case 'home':
+      // Колокольчик внутри hero — тот же обработчик, что и у плавающего
+      const heroBell = container.querySelector('#heroBell');
+      if (heroBell) {
+        document.body.classList.add('has-hero-bell');
+        heroBell.addEventListener('click', (e) => { e.stopPropagation(); toggleNotificationPanel(); });
+      } else {
+        document.body.classList.remove('has-hero-bell');
+      }
       // Тап по категории
       container.querySelectorAll('.category-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -2686,6 +2718,8 @@ function bindEvents(screenName, container) {
           const phone = container.querySelector('#profilePhone')?.value.trim();
           const whatsapp_url = container.querySelector('#profileWhatsapp')?.value.trim();
           const welcome_text = container.querySelector('#profileWelcome')?.value.trim();
+          const works_count = parseInt(container.querySelector('#profileWorks')?.value || '0', 10) || 0;
+          const years_experience = parseInt(container.querySelector('#profileYears')?.value || '0', 10) || 0;
           const master_code = container.querySelector('#profileCode')?.value.trim();
 
           if (!name) {
@@ -2698,7 +2732,7 @@ function bindEvents(screenName, container) {
           saveProfileBtn.textContent = 'Сохранение...';
 
           try {
-            const data = { name, description, phone, whatsapp_url, welcome_text };
+            const data = { name, description, phone, whatsapp_url, welcome_text, works_count, years_experience };
             if (master_code && master_code.length === 4) {
               data.master_code = master_code;
             }
@@ -2713,6 +2747,8 @@ function bindEvents(screenName, container) {
               MASTER.phone = phone;
               MASTER.whatsapp_url = whatsapp_url;
               MASTER.welcome_text = welcome_text;
+              MASTER.works_count = works_count;
+              MASTER.years_experience = years_experience;
               if (master_code && master_code.length === 4) {
                 MASTER.master_code = master_code;
                 MASTER_CODE = master_code;
@@ -3821,16 +3857,18 @@ async function refreshNotifCount() {
     notifs = (notifs || []).filter(n => ['booking_confirmed', 'reminder', 'broadcast'].includes(n.type));
   }
   const count = (notifs || []).filter(n => !n.read).length;
-  const bell = document.getElementById('notifBell');
-  if (!bell) return;
-  const existing = bell.querySelector('.notif-badge');
-  if (existing) existing.remove();
-  if (count > 0) {
-    const badge = document.createElement('span');
-    badge.className = 'notif-badge';
-    badge.textContent = count > 99 ? '99+' : count;
-    bell.appendChild(badge);
-  }
+  ['notifBell', 'heroBell'].forEach(id => {
+    const bell = document.getElementById(id);
+    if (!bell) return;
+    const existing = bell.querySelector('.notif-badge');
+    if (existing) existing.remove();
+    if (count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'notif-badge';
+      badge.textContent = count > 99 ? '99+' : count;
+      bell.appendChild(badge);
+    }
+  });
 }
 
 async function toggleNotificationPanel() {

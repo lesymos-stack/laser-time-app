@@ -704,6 +704,9 @@ async function loadAllData() {
       phone: master.phone,
       welcome_text: master.welcome_text,
       master_code: master.master_code,
+      whatsapp_url: master.whatsapp_url,
+      works_count: master.works_count || 0,
+      years_experience: master.years_experience || 0,
     },
     categories: categories.map(c => ({
       id: c.id,
