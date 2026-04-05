@@ -249,10 +249,15 @@ async function loadClient(masterId, tgUserId, phone) {
     if (clients && clients[0]) return clients[0];
   }
   if (phone) {
-    const clients = await API.fetch('clients',
-      `master_id=eq.${masterId}&phone=eq.${encodeURIComponent(phone)}`
-    );
-    if (clients && clients[0]) return clients[0];
+    // Пробуем разные форматы телефона — в БД может быть с + или без
+    const digits = String(phone).replace(/\D/g, '').slice(-10);
+    const variants = [...new Set([phone, digits, '7' + digits, '+7' + digits, '8' + digits])].filter(Boolean);
+    for (const v of variants) {
+      const clients = await API.fetch('clients',
+        `master_id=eq.${masterId}&phone=eq.${encodeURIComponent(v)}`
+      );
+      if (clients && clients[0]) return clients[0];
+    }
   }
   return null;
 }
@@ -297,6 +302,8 @@ async function createBooking(bookingData) {
 // === Создание/обновление клиента ===
 
 async function upsertClient(masterId, tgUser, phone) {
+  // Нормализуем телефон — храним только цифры
+  if (phone) phone = String(phone).replace(/\D/g, '');
   // Проверяем, есть ли уже клиент (по tg_user_id или phone)
   const existing = await loadClient(masterId, tgUser.id || 0, phone);
 
@@ -348,8 +355,10 @@ function computeAvailableSlots(scheduleRows, overrides, bookedSlots, daysAhead =
   for (const b of bookedSlots) {
     const startMin = timeToMinutes(b.time.substring(0, 5));
     const dur = b.duration || 30;
-    if (!busyByDate[b.date]) busyByDate[b.date] = [];
-    busyByDate[b.date].push({ start: startMin, end: startMin + dur });
+    // Нормализуем дату — API может вернуть ISO datetime "2026-04-06T00:00:00.000Z"
+    const dateKey = String(b.date).slice(0, 10);
+    if (!busyByDate[dateKey]) busyByDate[dateKey] = [];
+    busyByDate[dateKey].push({ start: startMin, end: startMin + dur });
   }
 
   for (let i = 0; i < daysAhead; i++) {
@@ -391,8 +400,10 @@ function computeBusyIntervals(bookedSlots) {
   for (const b of bookedSlots) {
     const startMin = timeToMinutes(b.time.substring(0, 5));
     const dur = b.duration || 30;
-    if (!busy[b.date]) busy[b.date] = [];
-    busy[b.date].push({ start: startMin, end: startMin + dur });
+    // Нормализуем дату — API может вернуть ISO datetime
+    const dateKey = String(b.date).slice(0, 10);
+    if (!busy[dateKey]) busy[dateKey] = [];
+    busy[dateKey].push({ start: startMin, end: startMin + dur });
   }
   return busy;
 }
@@ -728,7 +739,7 @@ async function loadAllData() {
       sort: s.sort_order,
     })),
     schedule: schedule,
-    bookedSlots: bookedSlots.map(b => `${b.date}_${b.time.substring(0, 5)}`),
+    bookedSlots: bookedSlots.map(b => `${String(b.date).slice(0, 10)}_${b.time.substring(0, 5)}`),
     busyIntervals: BUSY_INTERVALS,
   };
 }

@@ -102,6 +102,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem('current_master_slug', currentSlug);
   }
 
+  // PWA: если приложение открыто без ?master= и без ?page=, но есть сохранённый slug —
+  // редиректим пользователя на его мастера (чтобы он не видел лендинг)
+  const pageParamCheck = new URLSearchParams(window.location.search).get('page');
+  if (!currentSlug && !pageParamCheck) {
+    const savedAuthUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const savedMasterSlug = localStorage.getItem('current_master_slug');
+    if (savedAuthUser && savedMasterSlug) {
+      location.replace('/?master=' + savedMasterSlug);
+      return;
+    }
+  }
+
   // Проверяем ?page= ДО любых загрузок — для быстрого открытия спецстраниц
   const pageParamEarly = new URLSearchParams(window.location.search).get('page');
   if (pageParamEarly === 'register') {
