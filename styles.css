@@ -135,9 +135,12 @@ html.web-theme body {
 html.web-theme .promo-banner {
   background: var(--web-accent);
   border-radius: 18px;
-  padding: 20px 22px;
+  padding: 18px 20px;
   position: relative;
   overflow: hidden;
+  max-width: 85%;
+  margin-left: auto;
+  margin-right: auto;
 }
 html.web-theme .promo-banner::after {
   content: '';
@@ -157,9 +160,9 @@ html.web-theme .home-abonement-btn {
   display: none !important;
 }
 
-/* Web-theme: делаем кнопку "Поделиться" в 2 раза короче, по центру */
+/* Web-theme: делаем кнопку "Поделиться" компактной, по центру */
 html.web-theme .home-share-btn {
-  max-width: 50%;
+  max-width: 40%;
   margin-left: auto;
   margin-right: auto;
 }
