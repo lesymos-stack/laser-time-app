@@ -588,7 +588,7 @@ function renderHome() {
       const name = u && u.name ? u.name.split(' ')[0] : '';
       return name ? `
         <div class="home-greeting">
-          <div class="home-greeting-hi">Привет, ${name}! 👋</div>
+          <div class="home-greeting-hi">Привет, ${name}!</div>
           <div class="home-greeting-sub">Выберите услугу для записи</div>
         </div>
       ` : '';
