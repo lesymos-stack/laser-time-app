@@ -24,13 +24,6 @@
         if (params.get('master') || params.get('page')) return;
         var saved = localStorage.getItem('current_master_slug');
         var auth = localStorage.getItem('beauty_auth');
-        // Отладка: сохраняем в window для показа на лендинге
-        window.__PWA_DEBUG__ = {
-          slug: saved,
-          hasAuth: !!auth,
-          url: window.location.href,
-          keys: Object.keys(localStorage)
-        };
         if (saved) {
           location.replace('/?master=' + saved);
           return;

@@ -114,9 +114,8 @@ html.web-theme .category-card {
   min-height: 120px;
 }
 
-/* Web-theme: фото категории — полностью помещается в карточке (без обрезки) */
+/* Web-theme: фото категории */
 html.web-theme .category-card.has-photo {
-  background-size: contain;
   background-color: var(--web-surface);
 }
 
@@ -573,11 +572,18 @@ body.has-hero-bell #notifBellContainer {
 }
 
 .category-card.has-photo {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   padding: 0;
   justify-content: flex-end;
+}
+
+.category-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 16px;
 }
 
 .category-card.has-photo::before {

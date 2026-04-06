@@ -237,9 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('✅ Данные загружены');
     } else {
       // Мастер не найден — нет ?master= в URL, показываем лендинг платформы
-      var debugInfo = window.__PWA_DEBUG__ || {};
-      var debugHTML = `<div style="position:fixed;top:0;left:0;right:0;background:#ff0;color:#000;padding:8px;font-size:11px;z-index:9999;font-family:monospace;word-break:break-all">PWA DEBUG:<br>slug: ${debugInfo.slug || 'NULL'}<br>auth: ${debugInfo.hasAuth ? 'YES' : 'NO'}<br>keys: ${(debugInfo.keys || []).join(',')}<br>url: ${debugInfo.url || ''}</div>`;
-      document.getElementById('app').innerHTML = debugHTML + `
+      document.getElementById('app').innerHTML = `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;text-align:center;background:#f8f8f8">
           <div style="font-size:56px;margin-bottom:16px">💆‍♀️</div>
           <div style="font-size:24px;font-weight:700;margin-bottom:8px;color:#1a1a1a">Beauty Platform</div>
@@ -532,8 +530,8 @@ function renderHome() {
   const categoriesHTML = CATEGORIES
     .sort((a, b) => a.sort - b.sort)
     .map(c => `
-      <div class="category-card ${c.photo_url ? 'has-photo' : ''}" data-category="${c.id}" ${c.photo_url ? `style="background-image:url('${c.photo_url}')"` : ''}>
-        ${!c.photo_url ? `<span class="category-icon">${c.icon}</span>` : ''}
+      <div class="category-card ${c.photo_url ? 'has-photo' : ''}" data-category="${c.id}">
+        ${c.photo_url ? `<img class="category-photo" src="${c.photo_url}" alt="${c.name}">` : `<span class="category-icon">${c.icon}</span>`}
         <div class="category-label">
           <div class="category-name">${c.name}</div>
           <div class="category-count">${formatCount(counts[c.id] || 0)}</div>
@@ -1331,7 +1329,7 @@ function renderHistory() {
     return b;
   });
   const upcoming = all.filter(b => {
-    if (b.status === 'cancelled' || b.status === 'no_show') return false;
+    if (b.status === 'cancelled' || b.status === 'no_show' || b.status === 'completed') return false;
     const d = parseDate(b.date);
     return d >= today;
   });
