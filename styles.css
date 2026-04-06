@@ -512,6 +512,21 @@ img {
   font-size: 15px;
 }
 
+/* --- Приветствие на главной --- */
+.home-greeting {
+  padding: 20px 0 8px;
+}
+.home-greeting-hi {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--tg-theme-text-color, #000);
+}
+.home-greeting-sub {
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-top: 4px;
+}
+
 /* ==============================
    4. СЕТКА КАТЕГОРИЙ
    ============================== */

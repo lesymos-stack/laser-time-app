@@ -583,6 +583,17 @@ function renderHome() {
     `}
 
 
+    ${(() => {
+      const u = getCurrentUser();
+      const name = u && u.name ? u.name.split(' ')[0] : '';
+      return name ? `
+        <div class="home-greeting">
+          <div class="home-greeting-hi">Привет, ${name}! 👋</div>
+          <div class="home-greeting-sub">Выберите услугу для записи</div>
+        </div>
+      ` : '';
+    })()}
+
     <div class="section-title">Услуги</div>
     <div class="categories-grid">
       ${categoriesHTML}
