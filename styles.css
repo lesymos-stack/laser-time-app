@@ -527,6 +527,72 @@ img {
   margin-top: 4px;
 }
 
+/* --- Популярные услуги на главной --- */
+.popular-services {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 16px;
+}
+.popular-service-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(128,128,128,0.12);
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+.popular-service-card:last-child {
+  border-bottom: none;
+}
+.popular-service-card:active {
+  opacity: 0.7;
+}
+.popular-service-icon {
+  font-size: 28px;
+  width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.popular-service-info {
+  flex: 1;
+  min-width: 0;
+}
+.popular-service-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.popular-service-meta {
+  font-size: 12px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-top: 2px;
+}
+.popular-service-price {
+  text-align: right;
+  flex-shrink: 0;
+}
+.popular-service-old {
+  font-size: 12px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  text-decoration: line-through;
+}
+.popular-service-current {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tg-theme-link-color, #007AFF);
+}
+html.web-theme .popular-service-current {
+  color: var(--web-accent);
+}
+html.web-theme .popular-service-card {
+  border-bottom-color: var(--web-border);
+}
+
 /* ==============================
    4. СЕТКА КАТЕГОРИЙ
    ============================== */

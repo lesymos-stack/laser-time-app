@@ -601,6 +601,33 @@ function renderHome() {
 
     ${promoHTML}
 
+    ${(() => {
+      // Популярные услуги — акционные или первые 3 по сортировке
+      const popular = saleServices.length > 0
+        ? saleServices.slice(0, 3)
+        : SERVICES.filter(s => s.active).sort((a, b) => a.sort - b.sort).slice(0, 3);
+      if (!popular.length) return '';
+      const cat = (id) => CATEGORIES.find(c => c.id === id);
+      return `
+        <div class="section-title">Популярные услуги</div>
+        <div class="popular-services">
+          ${popular.map(s => `
+            <div class="popular-service-card" data-service-id="${s.id}" data-category="${s.category}">
+              <div class="popular-service-icon">${cat(s.category)?.icon || '✨'}</div>
+              <div class="popular-service-info">
+                <div class="popular-service-name">${s.name}</div>
+                <div class="popular-service-meta">⏱ ${s.duration} мин</div>
+              </div>
+              <div class="popular-service-price">
+                ${s.salePrice ? `<div class="popular-service-old">${formatPrice(s.price)}</div>` : ''}
+                <div class="popular-service-current">${formatPrice(s.salePrice || s.price)}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    })()}
+
     <div class="home-booking-section">
       <button class="home-booking-btn" id="homeBookingBtn">
         <span class="home-booking-btn-icon">📅</span> Выбрать дату
@@ -621,9 +648,6 @@ function renderHome() {
       <span class="home-booking-btn-icon">🏷️</span> Абонементы
     </button>
 
-    <button class="home-history-btn home-share-btn" id="homeShareBtn">
-      <span class="home-booking-btn-icon">💌</span> Поделиться с другом
-    </button>
 
     ${(typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isIosInBrowser()) ? `
     <button class="home-history-btn" id="enablePushBtn" style="background:var(--tg-theme-button-color,#2196F3);color:var(--tg-theme-button-text-color,#fff)">
@@ -2218,6 +2242,14 @@ function bindEvents(screenName, container) {
         card.addEventListener('click', () => {
           state.selectedCategory = card.dataset.category;
           navigateTo('catalog');
+        });
+      });
+      // Тап по популярной услуге
+      container.querySelectorAll('.popular-service-card').forEach(card => {
+        card.addEventListener('click', () => {
+          state.selectedCategory = card.dataset.category;
+          state.selectedService = SERVICES.find(s => s.id == card.dataset.serviceId);
+          navigateTo('service');
         });
       });
       // Тап по баннеру акции → показать акционные услуги
@@ -4113,12 +4145,34 @@ function createTabBar() {
       <span class="tab-bar-icon">📅</span>
       <span class="tab-bar-label">Мои записи</span>
     </button>
+    <button class="tab-bar-item" data-tab="share">
+      <span class="tab-bar-icon">💌</span>
+      <span class="tab-bar-label">Поделиться</span>
+    </button>
   `;
   document.body.appendChild(bar);
 
   bar.querySelectorAll('.tab-bar-item').forEach(item => {
     item.addEventListener('click', () => {
       const tab = item.dataset.tab;
+
+      // «Поделиться» — не экран, а действие
+      if (tab === 'share') {
+        const masterSlug = MASTER?.slug || '';
+        const masterName = MASTER?.name || 'Beauty Platform';
+        const shareText = `Привет! Посмотри ${masterName}. Записаться можно онлайн:`;
+        const shareUrl = MASTER?.bot_username
+          ? `https://t.me/${MASTER.bot_username}`
+          : `https://app.beautyplatform.ru/?master=${masterSlug}`;
+        if (tg) {
+          tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`);
+        } else {
+          window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, '_blank');
+        }
+        haptic('impact', 'light');
+        return;
+      }
+
       const targetScreen = TAB_MAP[tab];
       if (state.currentScreen === targetScreen) return;
       // При переключении табов сбрасываем стек
