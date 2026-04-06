@@ -540,8 +540,8 @@ function renderHome() {
   const promoHTML = hasSale ? `
     <div class="promo-banner" data-action="show-sales">
       <div class="promo-badge">АКЦИЯ</div>
-      <div class="promo-title">Скидка до 20% на первый визит</div>
-      <div class="promo-text">Успейте записаться по выгодной цене</div>
+      <div class="promo-title">${MASTER.promo_title || 'Скидка до 20% на первый визит'}</div>
+      <div class="promo-text">${MASTER.promo_text || 'Успейте записаться по выгодной цене'}</div>
     </div>
   ` : '';
 
@@ -602,10 +602,13 @@ function renderHome() {
     ${promoHTML}
 
     ${(() => {
-      // Популярные услуги — акционные или первые 3 по сортировке
-      const popular = saleServices.length > 0
-        ? saleServices.slice(0, 3)
-        : SERVICES.filter(s => s.active).sort((a, b) => a.sort - b.sort).slice(0, 3);
+      // Популярные услуги — отмеченные мастером, потом акционные
+      const markedPopular = SERVICES.filter(s => s.active && s.is_popular);
+      const popular = markedPopular.length > 0
+        ? markedPopular.slice(0, 5)
+        : saleServices.length > 0
+          ? saleServices.slice(0, 3)
+          : [];
       if (!popular.length) return '';
       const cat = (id) => CATEGORIES.find(c => c.id === id);
       return `
@@ -1197,6 +1200,12 @@ function renderMasterProfile() {
         </div>
       </div>
 
+      <div class="master-section-title" style="margin-top:20px;">Баннер акции на главной</div>
+      <label class="admin-label">Заголовок акции</label>
+      <input type="text" id="profilePromoTitle" class="admin-input" value="${(m.promo_title || '').replace(/"/g, '&quot;')}" placeholder="Скидка до 20% на первый визит">
+      <label class="admin-label">Описание акции</label>
+      <input type="text" id="profilePromoText" class="admin-input" value="${(m.promo_text || '').replace(/"/g, '&quot;')}" placeholder="Успейте записаться по выгодной цене">
+
       <label class="admin-label">Код доступа к панели мастера</label>
       <input type="text" id="profileCode" class="admin-input" value="${(m.master_code || '').replace(/"/g, '&quot;')}" placeholder="4 цифры" maxlength="4" />
 
@@ -1325,6 +1334,11 @@ function renderServiceForm() {
       <div class="admin-photos" id="svcPhotos">${photosHTML}</div>
       <label class="admin-upload-btn" for="svcPhotoInput">+ Загрузить фото</label>
       <input type="file" id="svcPhotoInput" accept="image/*" multiple style="display:none">
+
+      <label class="admin-checkbox-label" style="margin-top:12px;">
+        <input type="checkbox" id="svcPopular" ${isEdit && s.is_popular ? 'checked' : ''}>
+        ⭐ Показывать в «Популярные услуги» на главной
+      </label>
 
       <button class="admin-save-btn" id="saveServiceBtn">${isEdit ? 'Сохранить' : 'Создать услугу'}</button>
     </div>
@@ -2168,6 +2182,7 @@ async function reloadGlobalServices() {
       photos: s.photos || [],
       active: s.is_active,
       sort: s.sort_order,
+      is_popular: s.is_popular || false,
     }));
   }
 }
@@ -2832,6 +2847,8 @@ function bindEvents(screenName, container) {
           const works_count = parseInt(container.querySelector('#profileWorks')?.value || '0', 10) || 0;
           const years_experience = parseInt(container.querySelector('#profileYears')?.value || '0', 10) || 0;
           const master_code = container.querySelector('#profileCode')?.value.trim();
+          const promo_title = container.querySelector('#profilePromoTitle')?.value.trim();
+          const promo_text = container.querySelector('#profilePromoText')?.value.trim();
 
           if (!name) {
             const res = container.querySelector('#profileResult');
@@ -2843,7 +2860,7 @@ function bindEvents(screenName, container) {
           saveProfileBtn.textContent = 'Сохранение...';
 
           try {
-            const data = { name, description, phone, whatsapp_url, welcome_text, works_count, years_experience };
+            const data = { name, description, phone, whatsapp_url, welcome_text, works_count, years_experience, promo_title, promo_text };
             if (master_code && master_code.length === 4) {
               data.master_code = master_code;
             }
@@ -2860,6 +2877,8 @@ function bindEvents(screenName, container) {
               MASTER.welcome_text = welcome_text;
               MASTER.works_count = works_count;
               MASTER.years_experience = years_experience;
+              MASTER.promo_title = promo_title;
+              MASTER.promo_text = promo_text;
               if (master_code && master_code.length === 4) {
                 MASTER.master_code = master_code;
                 MASTER_CODE = master_code;
@@ -3149,6 +3168,8 @@ function bindEvents(screenName, container) {
             return;
           }
 
+          const isPopular = container.querySelector('#svcPopular')?.checked || false;
+
           const data = {
             master_id: CURRENT_MASTER_ID,
             category_id: categoryId,
@@ -3160,6 +3181,7 @@ function bindEvents(screenName, container) {
             sort_order: sortOrder,
             photos,
             is_active: true,
+            is_popular: isPopular,
           };
 
           saveBtn.disabled = true;

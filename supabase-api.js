@@ -718,6 +718,8 @@ async function loadAllData() {
       whatsapp_url: master.whatsapp_url,
       works_count: master.works_count || 0,
       years_experience: master.years_experience || 0,
+      promo_title: master.promo_title || '',
+      promo_text: master.promo_text || '',
     },
     categories: categories.map(c => ({
       id: c.id,
@@ -737,6 +739,7 @@ async function loadAllData() {
       photos: s.photos || [],
       active: s.is_active,
       sort: s.sort_order,
+      is_popular: s.is_popular || false,
     })),
     schedule: schedule,
     bookedSlots: bookedSlots.map(b => `${String(b.date).slice(0, 10)}_${b.time.substring(0, 5)}`),

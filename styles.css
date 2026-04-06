@@ -2910,6 +2910,20 @@ html.web-theme .popular-service-card {
   font-family: inherit;
 }
 
+.admin-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--tg-theme-text-color, #000);
+  cursor: pointer;
+}
+.admin-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--tg-theme-button-color, #007AFF);
+}
+
 .admin-save-btn {
   display: block;
   width: 100%;
