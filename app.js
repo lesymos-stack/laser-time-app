@@ -385,8 +385,6 @@ function goBack() {
 
 // Рендер экрана
 function renderScreen(screenName, isBack = false) {
-  // Сбрасываем флаг hero-колокольчика — переустановится в bindEvents, если home с hero
-  document.body.classList.remove('has-hero-bell');
   const app = document.getElementById('app');
   const oldScreen = app.querySelector('.screen.active');
 
@@ -550,22 +548,23 @@ function renderHome() {
   // Инициалы для аватара
   const initials = MASTER.name.split(' ').map(w => w[0]).join('').slice(0, 2);
 
+  const whatsappUrl = MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, '');
   const statsHTML = (MASTER.works_count > 0 || MASTER.years_experience > 0) ? `
     <div class="hero-stats">
       ${MASTER.works_count > 0 ? `<div class="hero-stat"><div class="hero-stat-num">${MASTER.works_count}</div><div class="hero-stat-label">работ</div></div>` : ''}
       ${(MASTER.works_count > 0 && MASTER.years_experience > 0) ? `<div class="hero-stat-sep"></div>` : ''}
       ${MASTER.years_experience > 0 ? `<div class="hero-stat"><div class="hero-stat-num">${MASTER.years_experience} лет</div><div class="hero-stat-label">опыт</div></div>` : ''}
+      <div class="hero-stats-actions">
+        <a href="tel:${MASTER.phone || ''}" class="hero-action-btn" aria-label="Позвонить">📞</a>
+        <a href="${whatsappUrl}" target="_blank" class="hero-action-btn" aria-label="Написать">💬</a>
+        <button class="hero-action-btn hero-bell" id="heroBell" aria-label="Уведомления">🔔</button>
+      </div>
     </div>
   ` : '';
 
   return `
     ${MASTER.avatar ? `
     <div class="master-hero-v2" style="background-image:url('${MASTER.avatar}')">
-      <div class="hero-icon-bar">
-        <a href="tel:${MASTER.phone || ''}" class="hero-icon-btn hero-icon-call" aria-label="Позвонить">📞</a>
-        <a href="${MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, '')}" target="_blank" class="hero-icon-btn hero-icon-write" aria-label="Написать">💬</a>
-        <button class="hero-icon-btn hero-bell" id="heroBell" aria-label="Уведомления">🔔</button>
-      </div>
       <div class="master-hero-overlay">
         <div class="master-hero-name">${MASTER.name}</div>
         <div class="master-hero-desc">${MASTER.description}</div>
@@ -583,14 +582,6 @@ function renderHome() {
     ${statsHTML}
     `}
 
-    <div class="contact-buttons">
-      <a href="tel:${MASTER.phone}" class="contact-btn contact-btn-call">
-        <span class="contact-btn-icon">📞</span> Позвонить
-      </a>
-      <a href="${MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, '')}" class="contact-btn contact-btn-write" target="_blank">
-        <span class="contact-btn-icon">💬</span> Написать
-      </a>
-    </div>
 
     <div class="section-title">Услуги</div>
     <div class="categories-grid">
@@ -2206,13 +2197,10 @@ function bindPhotoDeleteButtons(container) {
 function bindEvents(screenName, container) {
   switch (screenName) {
     case 'home':
-      // Колокольчик внутри hero — тот же обработчик, что и у плавающего
+      // Колокольчик в строке статистики
       const heroBell = container.querySelector('#heroBell');
       if (heroBell) {
-        document.body.classList.add('has-hero-bell');
         heroBell.addEventListener('click', (e) => { e.stopPropagation(); toggleNotificationPanel(); });
-      } else {
-        document.body.classList.remove('has-hero-bell');
       }
       // Тап по категории
       container.querySelectorAll('.category-card').forEach(card => {
@@ -3923,18 +3911,12 @@ function createNotificationBell() {
   const user = getCurrentUser();
   if (!user) return;
 
-  if (document.getElementById('notifBellContainer')) return;
-
-  const bell = document.createElement('div');
-  bell.id = 'notifBellContainer';
-  bell.innerHTML = '<button class="notification-bell" id="notifBell">🔔</button>';
-  document.body.appendChild(bell);
-
-  bell.addEventListener('click', toggleNotificationPanel);
-
-  // Обновляем счётчик сразу и каждые 30 сек
-  refreshNotifCount();
-  _notifInterval = setInterval(refreshNotifCount, 30000);
+  // Колокольчик теперь только в hero-stats на главной (heroBell)
+  // Плавающий не создаём — только запускаем обновление счётчика
+  if (!_notifInterval) {
+    refreshNotifCount();
+    _notifInterval = setInterval(refreshNotifCount, 30000);
+  }
 }
 
 async function refreshNotifCount() {
