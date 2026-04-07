@@ -1,5 +1,5 @@
 // Service Worker — Beauty Platform PWA
-const CACHE_NAME = 'beauty-v61';
+const CACHE_NAME = 'beauty-v62';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

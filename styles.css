@@ -83,6 +83,12 @@ html.web-theme .hero-stat-num {
 html.web-theme .hero-stat-sep {
   background: var(--web-border);
 }
+html.web-theme .hero-stat-label {
+  color: #FFFFFF;
+}
+html.web-theme .home-greeting-sub {
+  color: #FFFFFF;
+}
 
 /* Web-theme: основной фон — #242582 (как в макете) */
 html.web-theme body,
@@ -359,7 +365,7 @@ img {
 .hero-stats-actions {
   margin-left: auto;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-shrink: 0;
 }
@@ -385,6 +391,10 @@ img {
 .hero-action-btn:active {
   transform: scale(0.92);
   opacity: 0.8;
+}
+button.hero-action-btn {
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .hero-stat {
