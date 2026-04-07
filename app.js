@@ -1491,7 +1491,19 @@ function bindHistoryEvents() {
       try {
         await API.patch('bookings', `id=eq.${id}`, { status: 'cancelled' });
         const b = state.clientBookings.find(x => x.id === id);
-        if (b) b.status = 'cancelled';
+        if (b) {
+          b.status = 'cancelled';
+          // Освобождаем слот в BOOKED_SLOTS и BUSY_INTERVALS
+          const slotKey = `${b.date}_${b.time ? b.time.substring(0,5) : ''}`;
+          const idx = BOOKED_SLOTS.indexOf(slotKey);
+          if (idx !== -1) BOOKED_SLOTS.splice(idx, 1);
+          if (BUSY_INTERVALS[b.date]) {
+            const startMin = timeToMinutes(b.time ? b.time.substring(0,5) : '');
+            BUSY_INTERVALS[b.date] = BUSY_INTERVALS[b.date].filter(
+              iv => !(iv.start === startMin)
+            );
+          }
+        }
         container.innerHTML = renderHistory();
         bindHistoryEvents();
         haptic('notification_success');
@@ -1514,7 +1526,18 @@ function bindHistoryEvents() {
         try {
           await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
           const b = state.clientBookings.find(x => x.id === bookingId);
-          if (b) b.status = 'cancelled';
+          if (b) {
+            b.status = 'cancelled';
+            const slotKey = `${b.date}_${b.time ? b.time.substring(0,5) : ''}`;
+            const idx = BOOKED_SLOTS.indexOf(slotKey);
+            if (idx !== -1) BOOKED_SLOTS.splice(idx, 1);
+            if (BUSY_INTERVALS[b.date]) {
+              const startMin = timeToMinutes(b.time ? b.time.substring(0,5) : '');
+              BUSY_INTERVALS[b.date] = BUSY_INTERVALS[b.date].filter(
+                iv => !(iv.start === startMin)
+              );
+            }
+          }
         } catch (e) { /* продолжаем */ }
         // Открываем экран записи
         state.selectedService = service;
@@ -2970,7 +2993,21 @@ function bindEvents(screenName, container) {
       });
       container.querySelectorAll('.admin-btn.cancel').forEach(btn => {
         btn.addEventListener('click', async () => {
-          await updateBookingStatus(btn.dataset.bookingId, 'cancelled');
+          const bid = btn.dataset.bookingId;
+          // Освобождаем слот до обновления
+          const bk = state.masterBookings.find(x => x.id === bid);
+          if (bk) {
+            const slotKey = `${bk.date}_${bk.time ? bk.time.substring(0,5) : ''}`;
+            const idx = BOOKED_SLOTS.indexOf(slotKey);
+            if (idx !== -1) BOOKED_SLOTS.splice(idx, 1);
+            if (BUSY_INTERVALS[bk.date]) {
+              const startMin = timeToMinutes(bk.time ? bk.time.substring(0,5) : '');
+              BUSY_INTERVALS[bk.date] = BUSY_INTERVALS[bk.date].filter(
+                iv => !(iv.start === startMin)
+              );
+            }
+          }
+          await updateBookingStatus(bid, 'cancelled');
           haptic('notification', 'warning');
           await loadMasterTabData('bookings');
           refreshAdminContent(container);
