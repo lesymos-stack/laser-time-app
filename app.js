@@ -846,6 +846,9 @@ function renderMasterBookings() {
     ? bookings.map(b => {
         const serviceName = b.services?.name || 'Услуга';
         const timeShort = b.time ? b.time.substring(0, 5) : '';
+        // Нормализуем дату
+        const dateKey = b.date && b.date.includes('T') ? b.date.split('T')[0] : b.date;
+        const dateDisplay = dateKey ? formatDateFull(parseDate(dateKey)) : b.date;
         const statusMap = {
           confirmed: { cls: 'confirmed', label: 'Подтверждено' },
           pending: { cls: 'pending', label: 'Ожидает' },
@@ -865,7 +868,7 @@ function renderMasterBookings() {
           <div class="admin-booking-phone">${b.client_phone ? '📞 ' + b.client_phone : ''}</div>
           <div class="admin-booking-details">
             <span>${serviceName}</span>
-            <span>${b.date}, ${timeShort}</span>
+            <span>${dateDisplay}, ${timeShort}</span>
             <span>${b.price ? b.price + ' ₽' : ''}${bonusInfo}</span>
           </div>
           ${b.status === 'pending' ? `
