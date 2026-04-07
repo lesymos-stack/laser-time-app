@@ -2142,6 +2142,27 @@ html.web-theme .popular-service-card {
   margin-top: 8px;
 }
 
+.success-message {
+  margin-top: 20px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.success-message-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+}
+.success-address {
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #8e8e93);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.success-address-link {
+  color: #2196F3;
+  text-decoration: underline;
+}
+
 /* ==============================
    11. SKELETON-ЗАГРУЗКИ
    ============================== */

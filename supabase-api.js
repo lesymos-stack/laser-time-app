@@ -720,6 +720,8 @@ async function loadAllData() {
       years_experience: master.years_experience || 0,
       promo_title: master.promo_title || '',
       promo_text: master.promo_text || '',
+      address: master.address || '',
+      maps_url: master.maps_url || '',
     },
     categories: categories.map(c => ({
       id: c.id,

@@ -1177,6 +1177,13 @@ function renderMasterProfile() {
         </div>
       </div>
 
+      <label class="admin-label">Адрес</label>
+      <input type="text" id="profileAddress" class="admin-input" value="${(m.address || '').replace(/"/g, '&quot;')}" placeholder="г. Москва, ул. Примерная, д. 1" />
+
+      <label class="admin-label">Ссылка на Яндекс Карты</label>
+      <input type="text" id="profileMapsUrl" class="admin-input" value="${(m.maps_url || '').replace(/"/g, '&quot;')}" placeholder="https://yandex.ru/maps/..." />
+      <div class="admin-form-hint" style="font-size:12px;color:var(--tg-theme-hint-color,#999);margin:4px 0 8px;">Откройте Яндекс Карты → найдите точку → Поделиться → скопируйте ссылку</div>
+
       <div class="master-section-title" style="margin-top:20px;">Баннер акции на главной</div>
       <label class="admin-label">Заголовок акции</label>
       <input type="text" id="profilePromoTitle" class="admin-input" value="${(m.promo_title || '').replace(/"/g, '&quot;')}" placeholder="Скидка до 20% на первый визит">
@@ -1997,10 +2004,20 @@ function renderSuccess() {
         </div>
       </div>
 
-      <div class="success-hint">Напоминание придёт за 24 часа в этот чат</div>
-      <div class="success-hint">Нужно перенести? Напишите в чат бота.</div>
+      ${(() => {
+        const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        const clientName = u && u.name ? u.name.split(' ')[0] : '';
+        const addr = MASTER?.address || '';
+        const mapsUrl = MASTER?.maps_url || '';
+        return `
+          <div class="success-message">
+            <div class="success-message-text">${clientName ? clientName + ', д' : 'Д'}о встречи! 🌸</div>
+            ${addr ? `<div class="success-address">📍 Наш адрес: ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="success-address-link">${addr}</a>` : addr}</div>` : ''}
+          </div>
+        `;
+      })()}
 
-      ${''/* debug removed */}
+      <div class="success-hint">Напоминание придёт за 24 часа</div>
 
       ${!tg ? '<button class="booking-confirm-btn" id="successHomeBtn">На главную</button>' : ''}
     </div>
@@ -2849,6 +2866,8 @@ function bindEvents(screenName, container) {
           const master_code = container.querySelector('#profileCode')?.value.trim();
           const promo_title = container.querySelector('#profilePromoTitle')?.value.trim();
           const promo_text = container.querySelector('#profilePromoText')?.value.trim();
+          const address = container.querySelector('#profileAddress')?.value.trim();
+          const maps_url = container.querySelector('#profileMapsUrl')?.value.trim();
 
           if (!name) {
             const res = container.querySelector('#profileResult');
@@ -2860,7 +2879,7 @@ function bindEvents(screenName, container) {
           saveProfileBtn.textContent = 'Сохранение...';
 
           try {
-            const data = { name, description, phone, whatsapp_url, welcome_text, works_count, years_experience, promo_title, promo_text };
+            const data = { name, description, phone, whatsapp_url, welcome_text, works_count, years_experience, promo_title, promo_text, address, maps_url };
             if (master_code && master_code.length === 4) {
               data.master_code = master_code;
             }
@@ -2879,6 +2898,8 @@ function bindEvents(screenName, container) {
               MASTER.years_experience = years_experience;
               MASTER.promo_title = promo_title;
               MASTER.promo_text = promo_text;
+              MASTER.address = address;
+              MASTER.maps_url = maps_url;
               if (master_code && master_code.length === 4) {
                 MASTER.master_code = master_code;
                 MASTER_CODE = master_code;
