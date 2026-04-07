@@ -7,12 +7,25 @@
 function getStoredAuth() {
   try {
     const data = localStorage.getItem('beauty_auth');
-    return data ? JSON.parse(data) : null;
+    if (data) return JSON.parse(data);
+    // Fallback: cookie (iOS PWA имеет изолированный localStorage)
+    const match = document.cookie.match(/beauty_auth=([^;]+)/);
+    if (match) {
+      const cookieData = JSON.parse(decodeURIComponent(match[1]));
+      // Восстанавливаем в localStorage
+      localStorage.setItem('beauty_auth', JSON.stringify(cookieData));
+      return cookieData;
+    }
+    return null;
   } catch { return null; }
 }
 
 function saveAuth(data) {
   localStorage.setItem('beauty_auth', JSON.stringify(data));
+  // Cookie-бэкап для iOS PWA (localStorage изолирован в standalone режиме)
+  try {
+    document.cookie = 'beauty_auth=' + encodeURIComponent(JSON.stringify(data)) + ';path=/;max-age=' + (180 * 86400) + ';SameSite=Lax';
+  } catch(e) {}
 }
 
 function clearAuth() {
@@ -30,12 +43,17 @@ function getWebUser() {
   const auth = getStoredAuth();
   if (!auth || !auth.access_token) return null;
 
-  // Проверяем не истёк ли access_token (декодируем payload)
   try {
     const payload = JSON.parse(atob(auth.access_token.split('.')[1]));
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      // Токен истёк — пробуем обновить
-      return null; // refreshToken будет вызван при необходимости
+      // Токен истёк — запускаем фоновый refresh (не блокируем)
+      // Но всё равно возвращаем пользователя, чтобы не показывать экран логина
+      if (auth.refresh_token) {
+        refreshToken().catch(() => {});
+      }
+      // Возвращаем данные из payload — приложение будет работать,
+      // а authFetch обновит токен при первом API-запросе
+      return { id: payload.client_id, phone: payload.phone, name: auth.user?.name || '' };
     }
     return { id: payload.client_id, phone: payload.phone, name: auth.user?.name || '' };
   } catch {

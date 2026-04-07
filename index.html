@@ -21,22 +21,41 @@
     (function() {
       try {
         var params = new URLSearchParams(window.location.search);
+        // Уже есть ?master= или ?page= — ничего не делаем
         if (params.get('master') || params.get('page')) return;
+
+        // 1. Ищем slug в localStorage
         var saved = localStorage.getItem('current_master_slug');
-        var auth = localStorage.getItem('beauty_auth');
         if (saved) {
           location.replace('/?master=' + saved);
           return;
         }
-        // Нет slug, но есть auth — пробуем достать мастера из сохранённой роли мастера
+
+        // 2. Ищем slug в beauty_auth
+        var auth = localStorage.getItem('beauty_auth');
         if (auth) {
           try {
             var a = JSON.parse(auth);
             if (a && a.user && a.user.slug) {
+              localStorage.setItem('current_master_slug', a.user.slug);
               location.replace('/?master=' + a.user.slug);
               return;
             }
           } catch (e) {}
+        }
+
+        // 3. Для iOS PWA (standalone) — если localStorage пуст,
+        //    пробуем взять slug из cookie (кросс-контекстный)
+        var isPwa = window.navigator.standalone === true ||
+                    window.matchMedia('(display-mode: standalone)').matches;
+        if (isPwa) {
+          var match = document.cookie.match(/beauty_master=([^;]+)/);
+          if (match) {
+            var slug = decodeURIComponent(match[1]);
+            localStorage.setItem('current_master_slug', slug);
+            location.replace('/?master=' + slug);
+            return;
+          }
         }
       } catch (e) {}
     })();
