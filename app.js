@@ -548,15 +548,16 @@ function renderHome() {
   // Инициалы для аватара
   const initials = MASTER.name.split(' ').map(w => w[0]).join('').slice(0, 2);
 
-  const whatsappUrl = MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, '');
+  const whatsappUrl = safeUrl(MASTER.whatsapp_url || 'https://wa.me/' + (MASTER.phone || '').replace(/[^0-9]/g, ''));
+  const telUrl = safeUrl('tel:' + (MASTER.phone || ''));
   const statsHTML = (MASTER.works_count > 0 || MASTER.years_experience > 0) ? `
     <div class="hero-stats">
       ${MASTER.works_count > 0 ? `<div class="hero-stat"><div class="hero-stat-num">${MASTER.works_count}</div><div class="hero-stat-label">работ</div></div>` : ''}
       ${(MASTER.works_count > 0 && MASTER.years_experience > 0) ? `<div class="hero-stat-sep"></div>` : ''}
       ${MASTER.years_experience > 0 ? `<div class="hero-stat"><div class="hero-stat-num">${MASTER.years_experience} лет</div><div class="hero-stat-label">опыт</div></div>` : ''}
       <div class="hero-stats-actions">
-        <a href="tel:${MASTER.phone || ''}" class="hero-action-btn" aria-label="Позвонить">📞</a>
-        <a href="${whatsappUrl}" target="_blank" class="hero-action-btn" aria-label="Написать">💬</a>
+        ${telUrl ? `<a href="${escapeHtml(telUrl)}" class="hero-action-btn" aria-label="Позвонить">📞</a>` : ''}
+        ${whatsappUrl ? `<a href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer" class="hero-action-btn" aria-label="Написать">💬</a>` : ''}
         <button class="hero-action-btn hero-bell" id="heroBell" aria-label="Уведомления">🔔</button>
       </div>
     </div>
@@ -1987,11 +1988,13 @@ function renderSuccess() {
         const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
         const clientName = u && u.name ? u.name.split(' ')[0] : '';
         const addr = MASTER?.address || '';
-        const mapsUrl = MASTER?.maps_url || '';
+        const mapsUrl = safeUrl(MASTER?.maps_url || '');
+        const addrEsc = escapeHtml(addr);
+        const nameEsc = escapeHtml(clientName);
         return `
           <div class="success-message">
-            <div class="success-message-text">${clientName ? clientName + ', д' : 'Д'}о встречи! 🌸</div>
-            ${addr ? `<div class="success-address">📍 Наш адрес: ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="success-address-link">${addr}</a>` : addr}</div>` : ''}
+            <div class="success-message-text">${nameEsc ? nameEsc + ', д' : 'Д'}о встречи! 🌸</div>
+            ${addr ? `<div class="success-address">📍 Наш адрес: ${mapsUrl ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="success-address-link">${addrEsc}</a>` : addrEsc}</div>` : ''}
           </div>
         `;
       })()}
@@ -2509,12 +2512,14 @@ function bindEvents(screenName, container) {
             });
             const data = await res.json();
             if (res.ok) {
-              const masterUrl = `https://app.beautyplatform.ru/?master=${slug}`;
+              const masterUrl = safeUrl(`https://app.beautyplatform.ru/?master=${encodeURIComponent(slug)}`);
+              const masterUrlEsc = escapeHtml(masterUrl);
+              const codeEsc = escapeHtml(String(data.master_code || ''));
               if (resultDiv) resultDiv.innerHTML = `<span style="color:green">
   ✅ Мастер зарегистрирован!<br><br>
   🔗 Ссылка:<br>
-  <a href="${masterUrl}" target="_blank" style="display:inline-block;margin:8px 0;padding:12px 18px;background:#2196F3;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;word-break:break-all">${masterUrl}</a><br><br>
-  🔐 Код доступа в кабинет мастера: <b style="font-size:20px">${data.master_code}</b><br><br>
+  <a href="${masterUrlEsc}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:8px 0;padding:12px 18px;background:#2196F3;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;word-break:break-all">${masterUrlEsc}</a><br><br>
+  🔐 Код доступа в кабинет мастера: <b style="font-size:20px">${codeEsc}</b><br><br>
   <small>Нажмите на ссылку выше → вкладка "Мастер" → введите код</small>
 </span>`;
               regSubmitBtn.textContent = 'Зарегистрирован';
@@ -3736,7 +3741,7 @@ function showOfferIfNeeded() {
         <li>Первыми узнаёте о свободных окошках</li>
         <li>Эксклюзивные акции для подписчиков</li>
       </ul>
-      ${botLink ? `<a href="${botLink}" target="_blank" class="offer-btn">Получить скидку 20%</a>` : ''}
+      ${botLink ? `<a href="${escapeHtml(safeUrl(botLink))}" target="_blank" rel="noopener noreferrer" class="offer-btn">Получить скидку 20%</a>` : ''}
       <button class="offer-skip" id="offerSkipBtn">${botLink ? 'Пропустить' : 'Понятно'}</button>
     </div>
   `;
@@ -3839,9 +3844,9 @@ function renderSuperAdminPanel() {
       <div class="sadmin-master-info">
         <div class="sadmin-master-name">${escapeHtml(m.name)}</div>
         <div class="sadmin-master-meta">
-          ${m.phone ? '📞 ' + m.phone + ' · ' : ''}
-          ${m.slug ? '<a href="/?master=' + m.slug + '" target="_blank" class="sadmin-link">/' + m.slug + '</a>' : ''}
-          ${m.bot_username ? ' · @' + m.bot_username : ''}
+          ${m.phone ? '📞 ' + escapeHtml(m.phone) + ' · ' : ''}
+          ${m.slug ? '<a href="/?master=' + encodeURIComponent(m.slug) + '" target="_blank" rel="noopener noreferrer" class="sadmin-link">/' + escapeHtml(m.slug) + '</a>' : ''}
+          ${m.bot_username ? ' · @' + escapeHtml(m.bot_username) : ''}
         </div>
         <div class="sadmin-master-status">${m.is_active ? '✅ Активен' : '⏸ Пауза'} · 🔐 Код: <b>${m.master_code || '—'}</b></div>
       </div>
@@ -4192,6 +4197,15 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function safeUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url, window.location.origin);
+    if (['http:', 'https:', 'tel:', 'mailto:'].includes(u.protocol)) return url;
+    return '';
+  } catch { return ''; }
 }
 
 function formatNotifTime(dateStr) {
