@@ -1,5 +1,5 @@
 // Service Worker — Beauty Platform PWA
-const CACHE_NAME = 'beauty-v66';
+const CACHE_NAME = 'beauty-v41';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -82,18 +82,21 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const data = event.notification.data || {};
+  const targetUrl = data.url || '/';
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Если приложение уже открыто — фокусируемся на нём
+      // Если есть открытая вкладка приложения — фокусируем и передаём сообщение
       for (const client of windowClients) {
         if (client.url.includes(self.location.origin)) {
           client.focus();
-          client.postMessage({ type: 'PUSH_CLICK', data: event.notification.data });
+          client.postMessage({ type: 'PUSH_CLICK', data });
           return;
         }
       }
-      // Иначе открываем новую вкладку
-      return clients.openWindow('/');
+      // PWA не открыта — открываем url из data (Яндекс.Карты или главная)
+      return clients.openWindow(targetUrl);
     })
   );
 });

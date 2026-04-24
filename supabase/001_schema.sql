@@ -16,7 +16,7 @@ CREATE TABLE masters (
   whatsapp_url  TEXT DEFAULT '',
   avatar_url    TEXT,
   welcome_text  TEXT DEFAULT '',
-  master_code   TEXT DEFAULT '0000',
+  master_code   TEXT NOT NULL,
   is_active     BOOLEAN DEFAULT true,
   created_at    TIMESTAMPTZ DEFAULT now()
 );

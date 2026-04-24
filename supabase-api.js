@@ -722,6 +722,7 @@ async function loadAllData() {
       promo_text: master.promo_text || '',
       address: master.address || '',
       maps_url: master.maps_url || '',
+      studio_name: master.studio_name || '',
     },
     categories: categories.map(c => ({
       id: c.id,

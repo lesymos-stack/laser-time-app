@@ -378,7 +378,30 @@ function renderScreen(screenName, isBack = false) {
     case 'booking':  html = renderBooking(); break;
     case 'success':  html = renderSuccess(); break;
     case 'history':  state.clientBookings = null; state.clientBookingsLoaded = false; html = renderHistory(); break;
-    case 'bonus':    html = renderBonus(); break;
+    case 'bonus': {
+      const authRole = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+      const authObj = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+      if (authObj && authRole === 'client') {
+        // Показываем новый экран с историей бонусов
+        state.bonusHistoryLoading = true;
+        state.bonusHistoryData = null;
+        html = renderBonusNew();
+        // После рендера запускаем загрузку
+        setTimeout(async () => {
+          const data = await loadBonusHistoryJwt();
+          state.bonusHistoryLoading = false;
+          state.bonusHistoryData = data;
+          if (state.currentScreen === 'bonus') {
+            const app2 = document.getElementById('app');
+            const bonusScreen = app2 && app2.querySelector('.screen.active');
+            if (bonusScreen) bonusScreen.innerHTML = renderBonusNew();
+          }
+        }, 0);
+      } else {
+        html = renderBonus();
+      }
+      break;
+    }
     case 'abonement': html = renderAbonement(); break;
     case 'masterLogin': html = renderMasterLogin(); break;
     case 'masterPanel': html = renderMasterPanel(); break;
@@ -508,7 +531,7 @@ function renderHome() {
       <div class="category-card ${c.photo_url ? 'has-photo' : ''}" data-category="${c.id}">
         ${c.photo_url ? `<img class="category-photo" src="${c.photo_url}" alt="${c.name}">` : `<span class="category-icon">${c.icon}</span>`}
         <div class="category-label">
-          <div class="category-name">${c.name}</div>
+          <div class="category-name">${escapeHtml(c.name)}</div>
           <div class="category-count">${formatCount(counts[c.id] || 0)}</div>
         </div>
       </div>
@@ -543,8 +566,8 @@ function renderHome() {
     ${MASTER.avatar ? `
     <div class="master-hero-v2" style="background-image:url('${MASTER.avatar}')">
       <div class="master-hero-overlay">
-        <div class="master-hero-name">${MASTER.name}</div>
-        <div class="master-hero-desc">${MASTER.description}</div>
+        <div class="master-hero-name">${escapeHtml(MASTER.name)}</div>
+        <div class="master-hero-desc">${escapeHtml(MASTER.description)}</div>
       </div>
     </div>
     ${statsHTML}
@@ -552,8 +575,8 @@ function renderHome() {
     <div class="master-header">
       <div class="master-avatar">${initials}</div>
       <div class="master-info">
-        <div class="master-name">${MASTER.name}</div>
-        <div class="master-desc">${MASTER.description}</div>
+        <div class="master-name">${escapeHtml(MASTER.name)}</div>
+        <div class="master-desc">${escapeHtml(MASTER.description)}</div>
       </div>
     </div>
     ${statsHTML}
@@ -703,7 +726,7 @@ function renderAbonement() {
     const basePrice = items[0].base_price;
 
     cardsHTML += `
-      <div class="abonement-section-title">${complexName}</div>
+      <div class="abonement-section-title">${escapeHtml(complexName)}</div>
       <div class="abonement-section-sub">По комплексу у нас ${basePrice.toLocaleString()} ₽</div>
     `;
 
@@ -767,55 +790,8 @@ function renderMasterLogin() {
 // ============================================================
 
 function renderMasterPanel() {
-  const tab = state.masterTab || 'bookings';
-
-  const tabsHTML = `
-    <div class="admin-tabs">
-      <button class="admin-tab ${tab === 'bookings' ? 'active' : ''}" data-tab="bookings">Записи</button>
-      <button class="admin-tab ${tab === 'services' ? 'active' : ''}" data-tab="services">Услуги</button>
-      <button class="admin-tab ${tab === 'categories' ? 'active' : ''}" data-tab="categories">Категории</button>
-      <button class="admin-tab ${tab === 'clients' ? 'active' : ''}" data-tab="clients">Клиенты</button>
-      <button class="admin-tab ${tab === 'abonements' ? 'active' : ''}" data-tab="abonements">Абонементы</button>
-      <button class="admin-tab ${tab === 'schedule' ? 'active' : ''}" data-tab="schedule">График</button>
-      <button class="admin-tab ${tab === 'broadcast' ? 'active' : ''}" data-tab="broadcast">Рассылка</button>
-      <button class="admin-tab ${tab === 'profile' ? 'active' : ''}" data-tab="profile">Профиль</button>
-    </div>
-  `;
-
-  let contentHTML = '';
-  switch (tab) {
-    case 'bookings': contentHTML = renderMasterBookings(); break;
-    case 'services': contentHTML = renderMasterServicesList(); break;
-    case 'categories': contentHTML = renderMasterCategoriesList(); break;
-    case 'abonements': contentHTML = renderMasterAbonements(); break;
-    case 'clients':  contentHTML = renderMasterClientsList(); break;
-    case 'schedule': contentHTML = renderMasterSchedule(); break;
-    case 'broadcast': contentHTML = renderBroadcastForm(); break;
-    case 'profile': contentHTML = renderMasterProfile(); break;
-    case 'serviceForm': contentHTML = renderServiceForm(); break;
-    case 'categoryForm': contentHTML = renderCategoryForm(); break;
-    case 'abonementForm': contentHTML = renderAbonementForm(); break;
-    case 'scheduleForm': contentHTML = renderScheduleForm(); break;
-  }
-
-  return `
-    <div class="history-screen admin-panel">
-      ${tab === 'serviceForm' ? `
-        <div class="admin-back-row">
-          <button class="admin-back-btn" id="backToServices">← Назад к услугам</button>
-        </div>
-      ` : tab === 'categoryForm' ? `
-        <div class="admin-back-row">
-          <button class="admin-back-btn" id="backToCategories">← Назад к категориям</button>
-        </div>
-      ` : tab === 'abonementForm' ? `
-        <div class="admin-back-row">
-          <button class="admin-back-btn" id="backToAbonements">← Назад к абонементам</button>
-        </div>
-      ` : tabsHTML}
-      <div id="adminContent">${contentHTML}</div>
-    </div>
-  `;
+  // Используем новый дизайн с drawer
+  return renderMasterPanelNew();
 }
 
 // --- Вкладка «Записи» ---
@@ -862,7 +838,7 @@ function renderMasterBookings() {
         return `
         <div class="admin-booking-card">
           <div class="admin-booking-header">
-            <span class="admin-booking-name">${b.client_name || 'Клиент'}${b.client_username ? ' @' + b.client_username : ''}</span>
+            <span class="admin-booking-name">${escapeHtml(b.client_name || 'Клиент')}${b.client_username ? ' @' + escapeHtml(b.client_username) : ''}</span>
             <span class="admin-booking-status ${st.cls}">${st.label}</span>
           </div>
           <div class="admin-booking-phone">${b.client_phone ? '📞 ' + b.client_phone : ''}</div>
@@ -925,7 +901,7 @@ function renderMasterServicesList() {
       <div class="admin-service-card" data-service-id="${s.id}">
         ${photoThumb}
         <div class="admin-service-info">
-          <div class="admin-service-name">${s.name}</div>
+          <div class="admin-service-name">${escapeHtml(s.name)}</div>
           <div class="admin-service-meta">${s.duration} мин · ${s.price} ₽${s.sale_price ? ' / ' + s.sale_price + ' ₽' : ''}</div>
         </div>
         <div class="admin-service-actions">
@@ -942,7 +918,7 @@ function renderMasterServicesList() {
     const catServices = grouped[cat.id];
     if (catServices && catServices.length > 0) {
       listHTML += `<div class="admin-category-group">
-        <div class="admin-category-title">${cat.icon} ${cat.name}</div>
+        <div class="admin-category-title">${cat.icon} ${escapeHtml(cat.name)}</div>
         ${catServices.map(renderServiceCard).join('')}
       </div>`;
     }
@@ -971,7 +947,7 @@ function renderMasterClientsList() {
         const date = c.created_at ? new Date(c.created_at).toLocaleDateString('ru-RU') : '';
         return `
         <div class="admin-client-card">
-          <div class="admin-client-name">${c.first_name || 'Клиент'}${c.username ? ' @' + c.username : ''}</div>
+          <div class="admin-client-name">${escapeHtml(c.first_name || 'Клиент')}${c.username ? ' @' + escapeHtml(c.username) : ''}</div>
           ${c.phone ? '<div class="admin-client-phone">📞 ' + c.phone + '</div>' : ''}
           <div class="admin-client-meta">
             <span>Визитов: ${c.visits_count || 0}</span>
@@ -1065,10 +1041,10 @@ function renderBroadcastForm() {
          <label><input type="checkbox" id="selectAllClients" checked> Выбрать всех (${clients.length})</label>
        </div>` +
       clients.map(c => {
-        const name = c.first_name || 'Клиент';
-        const info = c.phone ? ` (${c.phone})` : c.username ? ` (@${c.username})` : '';
+        const name = escapeHtml(c.first_name || 'Клиент');
+        const info = c.phone ? ` (${escapeHtml(c.phone)})` : c.username ? ` (@${escapeHtml(c.username)})` : '';
         return `<label class="broadcast-client-row">
-          <input type="checkbox" class="broadcast-client-check" data-phone="${c.phone || ''}" data-tg="${c.tg_user_id || ''}" checked>
+          <input type="checkbox" class="broadcast-client-check" data-phone="${escapeHtml(c.phone || '')}" data-tg="${c.tg_user_id || ''}" checked>
           <span>${name}${info}</span>
         </label>`;
       }).join('')
@@ -1214,7 +1190,7 @@ function renderMasterCategoriesList() {
             : `<div class="admin-service-thumb-placeholder">${c.icon || '📁'}</div>`
           }
           <div class="admin-service-info">
-            <div class="admin-service-name">${c.name}</div>
+            <div class="admin-service-name">${escapeHtml(c.name)}</div>
             <div class="admin-service-meta">Порядок: ${c.sort_order || 0}</div>
           </div>
           <div class="admin-service-actions">
@@ -1382,7 +1358,7 @@ function renderHistory() {
         return `
         <div class="my-booking-card">
           <div class="my-booking-status ${st.cls}">${st.label}</div>
-          <div class="my-booking-service">${serviceName}</div>
+          <div class="my-booking-service">${escapeHtml(serviceName)}</div>
           <div class="my-booking-datetime">
             <span>📅 ${dateFmt}</span>
             <span>🕐 ${timeShort}</span>
@@ -1409,7 +1385,7 @@ function renderHistory() {
         return `
         <div class="my-booking-card past">
           <div class="my-booking-status ${isCancelled ? 'status-cancelled' : 'status-completed'}">${isCancelled ? 'Отменено' : '✓ Выполнено'}</div>
-          <div class="my-booking-service">${serviceName}</div>
+          <div class="my-booking-service">${escapeHtml(serviceName)}</div>
           <div class="my-booking-datetime">
             <span>📅 ${dateFmt}</span>
             <span>🕐 ${timeShort}</span>
@@ -1617,7 +1593,7 @@ function renderCatalog() {
   const cardsHTML = services.map(s => renderServiceCard(s, category.icon)).join('');
 
   return `
-    <div class="catalog-header">${category.icon} ${category.name}</div>
+    <div class="catalog-header">${category.icon} ${escapeHtml(category.name)}</div>
     <div class="services-list">
       ${cardsHTML}
     </div>
@@ -1638,7 +1614,7 @@ function renderServiceCard(service, categoryIcon) {
     <div class="service-card" data-service-id="${service.id}">
       <div class="service-thumb">${categoryIcon}</div>
       <div class="service-info">
-        <div class="service-name">${service.name}</div>
+        <div class="service-name">${escapeHtml(service.name)}</div>
         <div class="service-duration">${formatDuration(service.duration)}</div>
         <div class="service-price-row">${priceHTML}</div>
       </div>
@@ -1661,7 +1637,7 @@ function renderService() {
 
   // Галерея: фото или иконка-заглушка
   const slides = service.photos.length > 0
-    ? service.photos.map(url => `<div class="gallery-slide"><img src="${url}" alt="${service.name}"></div>`).join('')
+    ? service.photos.map(url => `<div class="gallery-slide"><img src="${url}" alt="${escapeHtml(service.name)}"></div>`).join('')
     : `<div class="gallery-slide">${icon}</div>`;
 
   const dotsCount = Math.max(service.photos.length, 1);
@@ -1702,7 +1678,7 @@ function renderService() {
     </div>
     ${dotsHTML}
 
-    <div class="detail-title">${service.name}</div>
+    <div class="detail-title">${escapeHtml(service.name)}</div>
 
     <div class="detail-meta">
       <div class="detail-meta-item">
@@ -1713,7 +1689,7 @@ function renderService() {
     </div>
 
     <div class="detail-description-title">Описание</div>
-    <div class="detail-description">${service.description}</div>
+    <div class="detail-description">${escapeHtml(service.description)}</div>
 
     ${!tg ? '<button class="booking-confirm-btn" id="serviceBookBtn">Записаться</button>' : ''}
   `;
@@ -1860,7 +1836,7 @@ function renderBooking() {
 
   return `
     <div class="booking-summary">
-      <div class="booking-summary-name">${service.name}</div>
+      <div class="booking-summary-name">${escapeHtml(service.name)}</div>
       <div class="booking-summary-meta">${formatDuration(service.duration)} · ${formatPrice(displayPrice)}</div>
     </div>
 
@@ -1988,7 +1964,7 @@ function renderSuccess() {
       <div class="success-title">Вы записаны!</div>
 
       <div class="success-card">
-        <div class="success-card-title">${service.name}</div>
+        <div class="success-card-title">${escapeHtml(service.name)}</div>
         <div class="success-card-row">
           <span class="success-card-icon">📅</span>
           <span>${formatDateFull(dateObj)}</span>
@@ -2154,7 +2130,14 @@ async function loadMasterTabData(tab) {
   if (!CURRENT_MASTER_ID) return;
   try {
     if (tab === 'bookings') {
+      // Загружаем сегодняшние записи через новый JWT-эндпоинт
+      await loadMpTodayBookings();
+      // Для совместимости со старым кодом тоже загружаем общий список
       state.masterBookings = await loadMasterBookings(CURRENT_MASTER_ID) || [];
+    } else if (tab === 'calendar') {
+      if (!state.calendarMonth) state.calendarMonth = new Date();
+      const m = state.calendarMonth;
+      await loadCalendarMonthBookings(m.getFullYear(), m.getMonth());
     } else if (tab === 'services') {
       state.masterServices = await loadAllServices(CURRENT_MASTER_ID) || [];
     } else if (tab === 'categories') {
@@ -2209,19 +2192,24 @@ async function reloadGlobalServices() {
 
 // Обновить содержимое админ-панели без полной перерисовки
 function refreshAdminContent(container) {
+  // Новый интерфейс — используем refreshMpContent
+  if (container.querySelector('#mpPanelContent')) {
+    refreshMpContent(container);
+    return;
+  }
+  // Старый fallback (не должен вызываться, но на случай)
   const content = container.querySelector('#adminContent');
   if (!content) return;
   switch (state.masterTab) {
-    case 'bookings': content.innerHTML = renderMasterBookings(); break;
+    case 'bookings': content.innerHTML = renderMpTodayFeed(); break;
     case 'services': content.innerHTML = renderMasterServicesList(); break;
     case 'categories': content.innerHTML = renderMasterCategoriesList(); break;
     case 'clients':  content.innerHTML = renderMasterClientsList(); break;
     case 'abonements': content.innerHTML = renderMasterAbonements(); break;
     case 'schedule': content.innerHTML = renderMasterSchedule(); break;
     case 'broadcast': content.innerHTML = renderBroadcastForm(); break;
-    case 'profile': content.innerHTML = renderMasterProfile(); break;
+    case 'profile': content.innerHTML = renderMasterProfileNew(); break;
   }
-  // Перепривязываем обработчики
   bindEvents('masterPanel', container);
 }
 
@@ -2270,7 +2258,10 @@ function bindEvents(screenName, container) {
       // Колокольчик в строке статистики
       const heroBell = container.querySelector('#heroBell');
       if (heroBell) {
+        document.body.classList.add('has-hero-bell');
         heroBell.addEventListener('click', (e) => { e.stopPropagation(); toggleNotificationPanel(); });
+      } else {
+        document.body.classList.remove('has-hero-bell');
       }
       // Тап по категории
       container.querySelectorAll('.category-card').forEach(card => {
@@ -2624,10 +2615,14 @@ function bindEvents(screenName, container) {
       break;
 
     case 'masterPanel':
-      // Вкладки админки
+      // Новый интерфейс с drawer
+      bindMasterPanelNewEvents(container);
+
+      // Совместимость: старые admin-tab (если вдруг останутся)
       container.querySelectorAll('.admin-tab').forEach(tab => {
         tab.addEventListener('click', async () => {
           state.masterTab = tab.dataset.tab;
+          state.mpSection = tab.dataset.tab;
           haptic('selection');
           await loadMasterTabData(state.masterTab);
           state.currentScreen = '_refresh';
@@ -2640,6 +2635,7 @@ function bindEvents(screenName, container) {
       if (backToServices) {
         backToServices.addEventListener('click', () => {
           state.masterTab = 'services';
+          state.mpSection = 'services';
           state.editingService = null;
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
@@ -2651,6 +2647,7 @@ function bindEvents(screenName, container) {
       if (backToCategories) {
         backToCategories.addEventListener('click', () => {
           state.masterTab = 'categories';
+          state.mpSection = 'categories';
           state.editingCategory = null;
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
@@ -2662,6 +2659,7 @@ function bindEvents(screenName, container) {
       if (backToAbonements) {
         backToAbonements.addEventListener('click', () => {
           state.masterTab = 'abonements';
+          state.mpSection = 'abonements';
           state.editingAbonement = null;
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
@@ -4047,18 +4045,33 @@ async function refreshNotifCount() {
   });
 }
 
+function closeNotificationPanel() {
+  const panel = document.getElementById('notificationPanel');
+  if (!panel) return;
+  panel.remove();
+  document.removeEventListener('click', closeNotifOnOutsideClick);
+}
+
 async function toggleNotificationPanel() {
-  let panel = document.getElementById('notificationPanel');
-  if (panel) {
-    panel.remove();
+  const existing = document.getElementById('notificationPanel');
+  if (existing) {
+    closeNotificationPanel();
     return;
   }
 
-  panel = document.createElement('div');
+  if (!window.__notifPopstateBound) {
+    window.__notifPopstateBound = true;
+    window.addEventListener('popstate', () => {
+      closeNotificationPanel();
+    });
+  }
+
+  const panel = document.createElement('div');
   panel.id = 'notificationPanel';
   panel.className = 'notification-panel';
   panel.innerHTML = '<div class="notif-panel-header"><span>Уведомления</span><button id="notifMarkAll" class="notif-mark-all">Прочитать все</button></div><div class="notif-panel-list" id="notifList">Загрузка...</div>';
   document.body.appendChild(panel);
+  history.pushState({ notifOpen: true }, '');
 
   // Загружаем уведомления с фильтрацией по роли
   if (typeof loadNotifications === 'function') {
@@ -4164,15 +4177,21 @@ async function toggleNotificationPanel() {
 function closeNotifOnOutsideClick(e) {
   const panel = document.getElementById('notificationPanel');
   const bell = document.getElementById('notifBellContainer');
-  if (panel && !panel.contains(e.target) && !bell.contains(e.target)) {
-    panel.remove();
-    document.removeEventListener('click', closeNotifOnOutsideClick);
+  const heroBellEl = document.getElementById('heroBell');
+  if (panel && !panel.contains(e.target) && !(bell && bell.contains(e.target)) && !(heroBellEl && heroBellEl.contains(e.target))) {
+    closeNotificationPanel();
+    if (history.state && history.state.notifOpen) history.back();
   }
 }
 
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function formatNotifTime(dateStr) {
@@ -4288,4 +4307,1274 @@ function updateFallbackBackButton(screenName) {
   }
 
   // Кнопка «ЗАКРЫТЬ» на success убрана — есть «На главную»
+}
+
+// ============================================================
+// STAGE 3 — MASTER PANEL REDESIGN (M6/M1/M3/M4/M5/M2)
+// ============================================================
+
+// --- Показать toast-уведомление ---
+function showToast(message, duration) {
+  const existing = document.getElementById('mpToast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'mpToast';
+  toast.className = 'mp-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => toast.classList.add('show'));
+  });
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 220);
+  }, duration || 2200);
+}
+
+// --- Авторизованный fetch для мастера (JWT из getStoredAuth) ---
+async function authFetch(path, options) {
+  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, options && options.headers);
+  if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
+  const res = await fetch(API_BASE_URL + path, Object.assign({}, options, { headers }));
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error('HTTP ' + res.status + ': ' + errText);
+  }
+  return res.json();
+}
+
+// --- Открытие / закрытие drawer ---
+function openMpDrawer() {
+  document.body.classList.add('mp-drawer-open');
+}
+
+function closeMpDrawer() {
+  document.body.classList.remove('mp-drawer-open');
+}
+
+// --- Инициализация drawer (обработчики событий) ---
+function initMpDrawer(container) {
+  const overlay = container.querySelector('.mp-drawer-overlay');
+  const closeBtn = container.querySelector('.mp-drawer-close-btn');
+
+  if (overlay) overlay.addEventListener('click', closeMpDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeMpDrawer);
+
+  // Закрытие по ESC
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('mp-drawer-open')) {
+      closeMpDrawer();
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+
+  // Закрытие свайпом влево
+  let touchStartX = 0;
+  const drawer = container.querySelector('.mp-drawer');
+  if (drawer) {
+    drawer.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    drawer.addEventListener('touchend', (e) => {
+      const delta = e.changedTouches[0].clientX - touchStartX;
+      if (delta < -50) closeMpDrawer();
+    }, { passive: true });
+  }
+
+  // Пункты drawer
+  container.querySelectorAll('.mp-drawer-item[data-section]').forEach(item => {
+    item.addEventListener('click', async () => {
+      const section = item.dataset.section;
+      closeMpDrawer();
+      if (section === 'logout') {
+        if (typeof clearAuth === 'function') clearAuth();
+        state.masterUnlocked = false;
+        state.masterTab = 'bookings';
+        location.reload();
+        return;
+      }
+      state.masterTab = section;
+      state.mpSection = section;
+      haptic('selection');
+      if (['bookings', 'services', 'categories', 'clients', 'abonements', 'schedule', 'broadcast', 'profile'].includes(section)) {
+        await loadMasterTabData(section);
+      }
+      navigateTo('masterPanel', false);
+    });
+  });
+}
+
+// --- Render нового master panel с drawer ---
+function renderMasterPanelNew() {
+  const section = state.mpSection || state.masterTab || 'bookings';
+  const m = MASTER || {};
+
+  const drawerItems = [
+    { section: 'bookings',   icon: '📋', label: 'Записи' },
+    { section: 'calendar',   icon: '📆', label: 'Календарь' },
+    { section: 'services',   icon: '✂️',  label: 'Услуги' },
+    { section: 'categories', icon: '🗂',  label: 'Категории' },
+    { section: 'schedule',   icon: '📊', label: 'Расписание' },
+    { section: 'clients',    icon: '👥', label: 'Клиенты' },
+    { section: 'broadcast',  icon: '📣', label: 'Рассылка' },
+    { section: 'profile',    icon: '⚙️',  label: 'Профиль' },
+  ];
+
+  const drawerItemsHTML = drawerItems.map(it => `
+    <button class="mp-drawer-item${section === it.section ? ' active' : ''}" data-section="${escapeHtml(it.section)}">
+      <span class="mp-drawer-item-icon">${it.icon}</span>
+      <span>${it.label}</span>
+    </button>
+  `).join('');
+
+  const avatarHTML = m.avatar
+    ? `<img class="mp-avatar" src="${escapeHtml(m.avatar)}" alt="">`
+    : `<div class="mp-avatar">👤</div>`;
+
+  let contentHTML = '';
+  switch (section) {
+    case 'bookings':  contentHTML = renderMpTodayFeed(); break;
+    case 'calendar':  contentHTML = renderMpCalendar(); break;
+    case 'dayView':   contentHTML = renderMpDayView(); break;
+    case 'services':  contentHTML = renderMasterServicesList(); break;
+    case 'categories': contentHTML = renderMasterCategoriesList(); break;
+    case 'schedule':  contentHTML = renderMasterSchedule(); break;
+    case 'clients':   contentHTML = renderMasterClientsList(); break;
+    case 'broadcast': contentHTML = renderBroadcastForm(); break;
+    case 'profile':   contentHTML = renderMasterProfileNew(); break;
+    case 'serviceForm': contentHTML = renderServiceForm(); break;
+    case 'categoryForm': contentHTML = renderCategoryForm(); break;
+    case 'abonementForm': contentHTML = renderAbonementForm(); break;
+    case 'scheduleForm': contentHTML = renderScheduleForm(); break;
+    case 'abonements': contentHTML = renderMasterAbonements(); break;
+    case 'wizard':    contentHTML = renderMpWizard(); break;
+    default: contentHTML = renderMpTodayFeed();
+  }
+
+  // Статусная строка (для экрана записей)
+  let statusBarHTML = '';
+  if (section === 'bookings') {
+    const bookings = state.todayBookings || [];
+    const count = bookings.length;
+    const amount = bookings.reduce((s, b) => s + (b.price || 0), 0);
+    statusBarHTML = `
+      <div class="mp-status-bar">
+        <span class="stat-bookings">${count} ${pluralBookings(count)}</span>
+        <span style="color:var(--tg-theme-hint-color,#999)">·</span>
+        <span class="stat-amount">${amount.toLocaleString('ru-RU')} ₽</span>
+      </div>`;
+  }
+
+  const fabHTML = (section === 'bookings' || section === 'dayView')
+    ? `<button class="mp-fab" id="mpFabBtn">+</button>`
+    : '';
+
+  return `
+    <div class="mp-panel-wrapper" id="mpPanelWrapper">
+      <div class="mp-drawer-overlay"></div>
+      <nav class="mp-drawer">
+        <div class="mp-drawer-head">
+          <div class="mp-drawer-head-top">
+            ${avatarHTML}
+            <button class="mp-drawer-close-btn">✕</button>
+          </div>
+          <div class="mp-drawer-name">${escapeHtml(m.name || 'Мастер')}</div>
+          ${m.studio_name ? `<div class="mp-drawer-subtitle">${escapeHtml(m.studio_name)}</div>` : ''}
+        </div>
+        <div class="mp-drawer-items">
+          ${drawerItemsHTML}
+          <div class="mp-drawer-divider"></div>
+          <button class="mp-drawer-item" data-section="logout">
+            <span class="mp-drawer-item-icon">🚪</span>
+            <span>Выйти</span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="mp-header">
+        <button class="mp-burger-btn" id="mpBurgerBtn">☰</button>
+        <div class="mp-header-title">${escapeHtml(m.name || 'Панель мастера')}</div>
+        ${avatarHTML}
+      </div>
+      ${statusBarHTML}
+      <div class="mp-panel-content" id="mpPanelContent">
+        ${contentHTML}
+      </div>
+      ${fabHTML}
+    </div>
+  `;
+}
+
+function pluralBookings(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'запись';
+  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'записи';
+  return 'записей';
+}
+
+// --- M3 — Лента сегодняшних записей ---
+function renderMpTodayFeed() {
+  const bookings = state.todayBookings;
+  if (!bookings) {
+    return `<div class="mp-empty-state"><div class="mp-empty-icon">⏳</div><div class="mp-empty-title">Загрузка...</div></div>`;
+  }
+  if (bookings.length === 0) {
+    return `
+      <div class="mp-empty-state">
+        <div class="mp-empty-icon">☕</div>
+        <div class="mp-empty-title">Сегодня записей нет</div>
+        <div class="mp-empty-hint">Свободный день — отдыхайте!</div>
+      </div>`;
+  }
+
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+    .replace(/^./, c => c.toUpperCase());
+
+  const cardsHTML = bookings.map(b => renderMpBookingCard(b)).join('');
+
+  return `
+    <div class="mp-day-section-header">
+      <span>${escapeHtml(dateLabel)}</span>
+      <hr>
+    </div>
+    ${cardsHTML}
+  `;
+}
+
+// --- Карточка записи (M3/M5) ---
+function renderMpBookingCard(b) {
+  const time = b.time ? b.time.substring(0, 5) : '';
+  const dur = b.duration ? Math.floor(b.duration / 60) + (b.duration % 60 ? 'ч ' + (b.duration % 60) + 'м' : 'ч') : '';
+  const durSimple = b.duration ? (b.duration >= 60 ? Math.floor(b.duration / 60) + ' ч' + (b.duration % 60 ? ' ' + (b.duration % 60) + ' м' : '') : b.duration + ' м') : '';
+  const statusMap = {
+    pending:   { cls: 'pending',   label: 'Ожидает' },
+    confirmed: { cls: 'confirmed', label: 'Подтверждено' },
+    cancelled: { cls: 'cancelled', label: 'Отменено' },
+    completed: { cls: 'completed', label: 'Завершено' },
+  };
+  const st = statusMap[b.status] || { cls: 'pending', label: b.status || 'Ожидает' };
+
+  return `
+    <div class="mp-booking-card" data-booking-id="${escapeHtml(b.id || '')}">
+      <div class="mp-booking-time-block">
+        <span class="time">${escapeHtml(time)}</span>
+        ${durSimple ? `<span class="dur">${escapeHtml(durSimple)}</span>` : ''}
+      </div>
+      <div class="mp-booking-info">
+        <div class="mp-booking-client">${escapeHtml(b.client_name || 'Клиент')}</div>
+        <div class="mp-booking-service">${escapeHtml(b.service_name || '')}</div>
+        ${b.price ? `<div class="mp-booking-price">${b.price.toLocaleString('ru-RU')} ₽</div>` : ''}
+      </div>
+      <span class="mp-status-badge ${st.cls}">${st.label}</span>
+    </div>`;
+}
+
+// --- Загрузить сегодняшние записи через JWT ---
+async function loadMpTodayBookings() {
+  try {
+    const data = await authFetch('/api/v1/bookings/today');
+    state.todayBookings = data.bookings || [];
+    state.todayDate = data.date;
+    return data;
+  } catch (e) {
+    console.error('loadMpTodayBookings:', e);
+    state.todayBookings = [];
+    return null;
+  }
+}
+
+// --- M4 — Месячный календарь ---
+function renderMpCalendar() {
+  const now = state.calendarMonth || new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const monthName = new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
+    .replace(/^./, c => c.toUpperCase());
+
+  // Генерируем сетку
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  // Понедельник = 0
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const weekdaysHTML = weekdays.map(d => `<div class="mp-calendar-weekday">${d}</div>`).join('');
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedDate = state.calendarSelectedDate;
+  const datesWithBookings = state.calendarDatesWithBookings || {};
+
+  let cellsHTML = '';
+  // Пустые ячейки до первого числа
+  for (let i = 0; i < startDow; i++) {
+    cellsHTML += `<div class="mp-calendar-day other-month"></div>`;
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateObj = new Date(year, month, d);
+    dateObj.setHours(0, 0, 0, 0);
+    const dateKey = formatDateKey(dateObj);
+    const isToday = dateObj.getTime() === today.getTime();
+    const isSelected = dateKey === selectedDate && !isToday;
+    const hasDot = datesWithBookings[dateKey];
+    let cls = 'mp-calendar-day';
+    if (isToday) cls += ' today';
+    if (isSelected) cls += ' selected';
+    cellsHTML += `
+      <div class="${cls}" data-date="${dateKey}">
+        ${d}
+        ${hasDot ? `<span class="mp-calendar-dot"></span>` : ''}
+      </div>`;
+  }
+  // Остаток строки
+  const totalCells = startDow + lastDay.getDate();
+  const remainder = totalCells % 7;
+  if (remainder !== 0) {
+    for (let i = 0; i < 7 - remainder; i++) {
+      cellsHTML += `<div class="mp-calendar-day other-month"></div>`;
+    }
+  }
+
+  return `
+    <div class="mp-calendar">
+      <div class="mp-calendar-nav">
+        <button class="mp-calendar-nav-btn" id="mpCalPrev">‹</button>
+        <div class="mp-calendar-month-title">${escapeHtml(monthName)}</div>
+        <button class="mp-calendar-nav-btn" id="mpCalNext">›</button>
+      </div>
+      <div class="mp-calendar-grid">
+        ${weekdaysHTML}
+        ${cellsHTML}
+      </div>
+    </div>
+    ${selectedDate ? `<div id="mpDayViewInline"></div>` : ''}
+  `;
+}
+
+// --- Загрузить даты с записями для текущего месяца ---
+async function loadCalendarMonthBookings(year, month) {
+  try {
+    const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastD = new Date(year, month + 1, 0).getDate();
+    const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+    const data = await API.fetch('bookings',
+      `master_id=eq.${CURRENT_MASTER_ID}&date=gte.${from}&date=lte.${to}&status=in.(confirmed,pending,completed)&select=date`
+    );
+    const map = {};
+    if (data) data.forEach(b => { map[String(b.date).slice(0, 10)] = true; });
+    state.calendarDatesWithBookings = map;
+  } catch (e) {
+    console.error('loadCalendarMonthBookings:', e);
+    state.calendarDatesWithBookings = {};
+  }
+}
+
+// --- M5 — Экран "Запись дня" ---
+function renderMpDayView() {
+  const date = state.calendarSelectedDate;
+  if (!date) return '';
+  const bookings = state.dayViewBookings;
+  const summary = state.dayViewSummary;
+
+  const dateObj = new Date(date + 'T00:00:00');
+  const dateFmt = dateObj.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+    .replace(/^./, c => c.toUpperCase());
+
+  let bodyHTML;
+  if (!bookings) {
+    bodyHTML = `<div class="mp-empty-state"><div class="mp-empty-icon">⏳</div><div class="mp-empty-title">Загрузка...</div></div>`;
+  } else if (bookings.length === 0) {
+    bodyHTML = `
+      <div class="mp-empty-state">
+        <div class="mp-empty-icon">📅</div>
+        <div class="mp-empty-title">Записей нет</div>
+        <div class="mp-empty-hint">В этот день нет записей</div>
+      </div>`;
+  } else {
+    bodyHTML = bookings.map(b => renderMpBookingCard(b)).join('');
+  }
+
+  const count = summary ? summary.total_count : (bookings ? bookings.length : 0);
+  const amount = summary ? summary.total_amount : (bookings ? bookings.reduce((s, b) => s + (b.price || 0), 0) : 0);
+
+  return `
+    <div class="mp-day-screen-header">
+      <button class="back-btn" id="mpDayBackBtn">← Назад</button>
+      <div class="date-title">${escapeHtml(dateFmt)}</div>
+      <div class="day-stats">
+        <span class="count">${count} ${pluralBookings(count)}</span>
+        &nbsp;·&nbsp;
+        <span class="amount">${(amount || 0).toLocaleString('ru-RU')} ₽</span>
+      </div>
+    </div>
+    ${bodyHTML}
+  `;
+}
+
+// --- Загрузить записи конкретного дня ---
+async function loadMpDayBookings(date) {
+  try {
+    const data = await authFetch('/api/v1/bookings/by-date?date=' + date);
+    state.dayViewBookings = data.bookings || [];
+    state.dayViewSummary = data.summary || null;
+    return data;
+  } catch (e) {
+    console.error('loadMpDayBookings:', e);
+    state.dayViewBookings = [];
+    state.dayViewSummary = null;
+    return null;
+  }
+}
+
+// --- M2 — Wizard "Новая запись" ---
+// Состояние wizard
+const wizardState = {
+  step: 1,
+  client: null,       // { name, phone } или null (будет заполнено на шаге 1)
+  service: null,      // объект услуги
+  date: null,         // 'YYYY-MM-DD'
+  time: null,         // 'HH:MM'
+  clientSearch: '',
+  clientSearchResults: [],
+  showNewClientForm: false,
+  newClientName: '',
+  newClientPhone: '',
+  slotsBusy: [],
+  slotsAll: [],
+};
+
+function renderMpWizard() {
+  const step = wizardState.step;
+  const totalSteps = 5;
+  const fillPct = Math.round((step / totalSteps) * 100);
+
+  const stepTitles = ['Клиент', 'Услуга', 'Дата', 'Время', 'Подтверждение'];
+
+  let stepHTML = '';
+  switch (step) {
+    case 1: stepHTML = renderWizardStepClient(); break;
+    case 2: stepHTML = renderWizardStepService(); break;
+    case 3: stepHTML = renderWizardStepDate(); break;
+    case 4: stepHTML = renderWizardStepTime(); break;
+    case 5: stepHTML = renderWizardStepConfirm(); break;
+  }
+
+  const prevDisabled = step === 1;
+  const nextLabel = step === totalSteps ? 'Записать' : 'Далее';
+
+  return `
+    <div class="mp-wizard-screen" id="mpWizardScreen">
+      <div class="mp-wizard-header">
+        <button class="mp-burger-btn" id="wizardBackBtn">←</button>
+        <div class="mp-wizard-header-title">Новая запись</div>
+      </div>
+      <div class="mp-wizard-progress">
+        <div class="mp-wizard-progress-fill" style="width:${fillPct}%"></div>
+      </div>
+      <div class="mp-wizard-step-label">Шаг ${step} из ${totalSteps} — ${stepTitles[step - 1]}</div>
+      <div class="mp-wizard-content" id="wizardContent">
+        ${stepHTML}
+      </div>
+      <div class="mp-wizard-nav">
+        <button class="mp-btn-secondary" id="wizardPrevBtn" ${prevDisabled ? 'style="opacity:0.4"' : ''}>Назад</button>
+        <button class="mp-btn-primary" id="wizardNextBtn">${nextLabel}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWizardStepClient() {
+  const results = wizardState.clientSearchResults || [];
+  const resultsHTML = results.length
+    ? results.map(c => `
+        <div class="mp-client-result-item" data-client-id="${escapeHtml(c.id || '')}">
+          ${escapeHtml(c.first_name || c.name || 'Клиент')}
+          <span class="meta">${escapeHtml(c.phone || '')}</span>
+        </div>`).join('')
+    : (wizardState.clientSearch.length >= 2 ? '<div style="padding:12px 16px;font-size:14px;color:var(--tg-theme-hint-color,#999)">Не найдено</div>' : '');
+
+  const selectedHTML = wizardState.client
+    ? `<div style="background:#e8f5e9;border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:15px;font-weight:600;color:#2e7d32">
+        ✓ ${escapeHtml(wizardState.client.name)} ${escapeHtml(wizardState.client.phone || '')}
+        <button id="wizardClientClear" style="float:right;background:none;border:none;color:#999;cursor:pointer;font-size:16px;">✕</button>
+       </div>`
+    : '';
+
+  const newClientFormHTML = wizardState.showNewClientForm
+    ? `<div class="mp-new-client-form">
+        <label class="mp-form-label">Имя</label>
+        <input class="mp-form-input" id="wizardNewName" placeholder="Имя клиента" value="${escapeHtml(wizardState.newClientName)}">
+        <label class="mp-form-label">Телефон</label>
+        <input class="mp-form-input" id="wizardNewPhone" type="tel" placeholder="+7 (___) ___-__-__" value="${escapeHtml(wizardState.newClientPhone)}">
+       </div>`
+    : `<button class="mp-btn-secondary" id="wizardShowNewClient" style="width:100%;margin-top:4px;">+ Новый клиент</button>`;
+
+  return `
+    ${selectedHTML}
+    ${!wizardState.client ? `
+      <input class="mp-search-input" id="wizardClientSearch" placeholder="🔍 Имя или телефон..." value="${escapeHtml(wizardState.clientSearch)}">
+      ${results.length || wizardState.clientSearch.length >= 2 ? `<div class="mp-client-search-results">${resultsHTML}</div>` : ''}
+      <div class="mp-wizard-divider">или</div>
+    ` : ''}
+    ${!wizardState.client ? newClientFormHTML : ''}
+  `;
+}
+
+function renderWizardStepService() {
+  const services = state.masterServices || [];
+  if (!services.length) {
+    return '<div style="padding:16px;color:var(--tg-theme-hint-color,#999)">Нет услуг. Добавьте услуги в разделе «Услуги».</div>';
+  }
+  return services.map(s => `
+    <div class="mp-service-select-item${wizardState.service && wizardState.service.id === s.id ? ' selected' : ''}" data-service-id="${escapeHtml(String(s.id))}">
+      <div>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="meta">${s.duration} мин · ${(s.price || 0).toLocaleString('ru-RU')} ₽</div>
+      </div>
+      <div class="checkmark">${wizardState.service && wizardState.service.id === s.id ? '✓' : ''}</div>
+    </div>`).join('');
+}
+
+function renderWizardStepDate() {
+  // Используем mp-calendar с ограничениями: min = завтра, max = сегодня + 30
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 30);
+
+  const now = state.wizardCalendarMonth || tomorrow;
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const monthName = new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
+    .replace(/^./, c => c.toUpperCase());
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const weekdaysHTML = weekdays.map(d => `<div class="mp-calendar-weekday">${d}</div>`).join('');
+
+  let cellsHTML = '';
+  for (let i = 0; i < startDow; i++) {
+    cellsHTML += `<div class="mp-calendar-day other-month"></div>`;
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateObj = new Date(year, month, d);
+    dateObj.setHours(0, 0, 0, 0);
+    const dateKey = formatDateKey(dateObj);
+    const isDisabled = dateObj < tomorrow || dateObj > maxDate;
+    const isSelected = dateKey === wizardState.date;
+    let cls = 'mp-calendar-day';
+    if (isDisabled) cls += ' disabled';
+    if (isSelected) cls += ' selected';
+    cellsHTML += `<div class="${cls}" data-wizard-date="${dateKey}">${d}</div>`;
+  }
+  const totalCells = startDow + lastDay.getDate();
+  const remainder = totalCells % 7;
+  if (remainder !== 0) {
+    for (let i = 0; i < 7 - remainder; i++) {
+      cellsHTML += `<div class="mp-calendar-day other-month"></div>`;
+    }
+  }
+
+  return `
+    <div class="mp-calendar">
+      <div class="mp-calendar-nav">
+        <button class="mp-calendar-nav-btn" id="wizardCalPrev">‹</button>
+        <div class="mp-calendar-month-title">${escapeHtml(monthName)}</div>
+        <button class="mp-calendar-nav-btn" id="wizardCalNext">›</button>
+      </div>
+      <div class="mp-calendar-grid">
+        ${weekdaysHTML}
+        ${cellsHTML}
+      </div>
+    </div>
+    ${wizardState.date ? `<div style="padding:8px 0;font-size:14px;color:var(--tg-theme-button-color,#007AFF);font-weight:600;">Выбрано: ${wizardState.date}</div>` : ''}
+  `;
+}
+
+function renderWizardStepTime() {
+  const slots = wizardState.slotsAll || [];
+  const busy = wizardState.slotsBusy || [];
+  if (!wizardState.date) {
+    return '<div style="color:var(--tg-theme-hint-color,#999)">Сначала выберите дату</div>';
+  }
+  if (slots.length === 0) {
+    return '<div style="color:var(--tg-theme-hint-color,#999)">Нет доступных слотов на эту дату</div>';
+  }
+  const slotsHTML = slots.map(t => {
+    const isBusy = busy.includes(t);
+    const isSelected = wizardState.time === t;
+    let cls = 'mp-slot';
+    if (isBusy) cls += ' busy';
+    else if (isSelected) cls += ' selected';
+    return `<button class="${cls}" data-time="${escapeHtml(t)}">${escapeHtml(t)}</button>`;
+  }).join('');
+  return `<div class="mp-slots-grid">${slotsHTML}</div>`;
+}
+
+function renderWizardStepConfirm() {
+  const c = wizardState.client || {};
+  const s = wizardState.service || {};
+  return `
+    <div class="mp-summary-card">
+      <div class="mp-summary-row"><span class="label">Клиент</span><span class="value">${escapeHtml(c.name || '—')}</span></div>
+      <div class="mp-summary-row"><span class="label">Телефон</span><span class="value">${escapeHtml(c.phone || '—')}</span></div>
+      <div class="mp-summary-row"><span class="label">Услуга</span><span class="value">${escapeHtml(s.name || '—')}</span></div>
+      <div class="mp-summary-row"><span class="label">Дата</span><span class="value">${escapeHtml(wizardState.date || '—')}</span></div>
+      <div class="mp-summary-row"><span class="label">Время</span><span class="value">${escapeHtml(wizardState.time || '—')}</span></div>
+      <div class="mp-summary-row"><span class="label">Стоимость</span><span class="value">${s.price ? s.price.toLocaleString('ru-RU') + ' ₽' : '—'}</span></div>
+      <div class="mp-summary-row"><span class="label">Длительность</span><span class="value">${s.duration ? s.duration + ' мин' : '—'}</span></div>
+    </div>
+  `;
+}
+
+// --- Привязка событий wizard ---
+function bindWizardEvents(container) {
+  // Кнопка назад из wizard
+  container.querySelector('#wizardBackBtn')?.addEventListener('click', () => {
+    if (wizardState.step > 1) {
+      wizardState.step--;
+      refreshWizardContent(container);
+    } else {
+      state.mpSection = 'bookings';
+      state.masterTab = 'bookings';
+      navigateTo('masterPanel', false);
+    }
+  });
+
+  // Кнопка "Назад" в nav
+  container.querySelector('#wizardPrevBtn')?.addEventListener('click', () => {
+    if (wizardState.step > 1) {
+      wizardState.step--;
+      refreshWizardContent(container);
+    }
+  });
+
+  // Кнопка "Далее" / "Записать"
+  container.querySelector('#wizardNextBtn')?.addEventListener('click', async () => {
+    await wizardNext(container);
+  });
+
+  bindWizardStepEvents(container);
+}
+
+function refreshWizardContent(container) {
+  const content = container.querySelector('#wizardContent');
+  if (!content) return;
+  const step = wizardState.step;
+  switch (step) {
+    case 1: content.innerHTML = renderWizardStepClient(); break;
+    case 2: content.innerHTML = renderWizardStepService(); break;
+    case 3: content.innerHTML = renderWizardStepDate(); break;
+    case 4: content.innerHTML = renderWizardStepTime(); break;
+    case 5: content.innerHTML = renderWizardStepConfirm(); break;
+  }
+  // Обновляем прогресс
+  const fill = container.querySelector('.mp-wizard-progress-fill');
+  if (fill) fill.style.width = Math.round((step / 5) * 100) + '%';
+  const label = container.querySelector('.mp-wizard-step-label');
+  const titles = ['Клиент', 'Услуга', 'Дата', 'Время', 'Подтверждение'];
+  if (label) label.textContent = 'Шаг ' + step + ' из 5 — ' + titles[step - 1];
+  // Кнопки
+  const nextBtn = container.querySelector('#wizardNextBtn');
+  if (nextBtn) nextBtn.textContent = step === 5 ? 'Записать' : 'Далее';
+  const prevBtn = container.querySelector('#wizardPrevBtn');
+  if (prevBtn) prevBtn.style.opacity = step === 1 ? '0.4' : '1';
+  bindWizardStepEvents(container);
+}
+
+function bindWizardStepEvents(container) {
+  const step = wizardState.step;
+
+  if (step === 1) {
+    // Поиск клиента
+    const searchInput = container.querySelector('#wizardClientSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', async () => {
+        wizardState.clientSearch = searchInput.value;
+        if (searchInput.value.length >= 2) {
+          const results = await API.fetch('clients',
+            `master_id=eq.${CURRENT_MASTER_ID}&or=(first_name.ilike.*${encodeURIComponent(searchInput.value)}*,phone.ilike.*${encodeURIComponent(searchInput.value)}*)&limit=10`
+          );
+          wizardState.clientSearchResults = results || [];
+        } else {
+          wizardState.clientSearchResults = [];
+        }
+        const content = container.querySelector('#wizardContent');
+        if (content) content.innerHTML = renderWizardStepClient();
+        bindWizardStepEvents(container);
+      });
+    }
+
+    // Выбрать клиента из результатов
+    container.querySelectorAll('.mp-client-result-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.clientId;
+        const found = (wizardState.clientSearchResults || []).find(c => String(c.id) === id);
+        if (found) {
+          wizardState.client = {
+            id: found.id,
+            name: found.first_name || found.name || 'Клиент',
+            phone: found.phone || '',
+          };
+        }
+        const content = container.querySelector('#wizardContent');
+        if (content) content.innerHTML = renderWizardStepClient();
+        bindWizardStepEvents(container);
+      });
+    });
+
+    // Очистить выбранного клиента
+    container.querySelector('#wizardClientClear')?.addEventListener('click', () => {
+      wizardState.client = null;
+      wizardState.clientSearch = '';
+      wizardState.clientSearchResults = [];
+      const content = container.querySelector('#wizardContent');
+      if (content) content.innerHTML = renderWizardStepClient();
+      bindWizardStepEvents(container);
+    });
+
+    // Показать форму нового клиента
+    container.querySelector('#wizardShowNewClient')?.addEventListener('click', () => {
+      wizardState.showNewClientForm = true;
+      const content = container.querySelector('#wizardContent');
+      if (content) content.innerHTML = renderWizardStepClient();
+      bindWizardStepEvents(container);
+    });
+
+    // Сохранение полей нового клиента при вводе
+    container.querySelector('#wizardNewName')?.addEventListener('input', e => {
+      wizardState.newClientName = e.target.value;
+    });
+    container.querySelector('#wizardNewPhone')?.addEventListener('input', e => {
+      wizardState.newClientPhone = e.target.value;
+    });
+  }
+
+  if (step === 2) {
+    container.querySelectorAll('.mp-service-select-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.serviceId;
+        const svc = (state.masterServices || []).find(s => String(s.id) === id);
+        wizardState.service = svc || null;
+        const content = container.querySelector('#wizardContent');
+        if (content) content.innerHTML = renderWizardStepService();
+        bindWizardStepEvents(container);
+      });
+    });
+  }
+
+  if (step === 3) {
+    // Навигация месяца
+    container.querySelector('#wizardCalPrev')?.addEventListener('click', () => {
+      const m = state.wizardCalendarMonth || new Date();
+      const prev = new Date(m.getFullYear(), m.getMonth() - 1, 1);
+      state.wizardCalendarMonth = prev;
+      const content = container.querySelector('#wizardContent');
+      if (content) content.innerHTML = renderWizardStepDate();
+      bindWizardStepEvents(container);
+    });
+    container.querySelector('#wizardCalNext')?.addEventListener('click', () => {
+      const m = state.wizardCalendarMonth || new Date();
+      const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      state.wizardCalendarMonth = next;
+      const content = container.querySelector('#wizardContent');
+      if (content) content.innerHTML = renderWizardStepDate();
+      bindWizardStepEvents(container);
+    });
+    container.querySelectorAll('.mp-calendar-day[data-wizard-date]').forEach(cell => {
+      cell.addEventListener('click', () => {
+        wizardState.date = cell.dataset.wizardDate;
+        wizardState.time = null;
+        const content = container.querySelector('#wizardContent');
+        if (content) content.innerHTML = renderWizardStepDate();
+        bindWizardStepEvents(container);
+      });
+    });
+  }
+
+  if (step === 4) {
+    container.querySelectorAll('.mp-slot:not(.busy)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wizardState.time = btn.dataset.time;
+        const content = container.querySelector('#wizardContent');
+        if (content) content.innerHTML = renderWizardStepTime();
+        bindWizardStepEvents(container);
+      });
+    });
+  }
+}
+
+async function wizardNext(container) {
+  const step = wizardState.step;
+  const nextBtn = container.querySelector('#wizardNextBtn');
+
+  if (step === 1) {
+    // Если показана форма нового клиента — используем введённые данные
+    if (wizardState.showNewClientForm) {
+      const name = (container.querySelector('#wizardNewName')?.value || wizardState.newClientName).trim();
+      const phone = (container.querySelector('#wizardNewPhone')?.value || wizardState.newClientPhone).trim();
+      if (!name) { showToast('Введите имя клиента'); return; }
+      wizardState.client = { name, phone };
+      wizardState.showNewClientForm = false;
+    }
+    if (!wizardState.client) { showToast('Выберите или добавьте клиента'); return; }
+    // Загружаем услуги если ещё не загружены
+    if (!state.masterServices || !state.masterServices.length) {
+      await loadMasterTabData('services');
+    }
+    wizardState.step = 2;
+    refreshWizardContent(container);
+    return;
+  }
+
+  if (step === 2) {
+    if (!wizardState.service) { showToast('Выберите услугу'); return; }
+    // Инициализируем месяц для шага 3 — завтра
+    if (!state.wizardCalendarMonth) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      state.wizardCalendarMonth = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1);
+    }
+    wizardState.step = 3;
+    refreshWizardContent(container);
+    return;
+  }
+
+  if (step === 3) {
+    if (!wizardState.date) { showToast('Выберите дату'); return; }
+    // Загружаем занятые слоты для шага 4
+    nextBtn && (nextBtn.disabled = true);
+    try {
+      const data = await loadMpDayBookings(wizardState.date);
+      const booked = (data ? data.bookings || [] : []).map(b => b.time ? b.time.substring(0, 5) : '');
+      wizardState.slotsBusy = booked;
+      // Генерируем слоты из расписания мастера
+      const schedRows = state.masterSchedule || await loadAllSchedule(CURRENT_MASTER_ID) || [];
+      state.masterSchedule = schedRows;
+      const dateObj = new Date(wizardState.date + 'T00:00:00');
+      const dow = dateObj.getDay();
+      const row = schedRows.find(r => r.day_of_week === dow && r.is_active);
+      if (row) {
+        wizardState.slotsAll = generateTimeSlots(row.start_time.substring(0, 5), row.end_time.substring(0, 5), row.slot_interval || 30);
+      } else {
+        wizardState.slotsAll = generateTimeSlots('09:00', '20:00', 30);
+      }
+    } catch (e) {
+      wizardState.slotsBusy = [];
+      wizardState.slotsAll = generateTimeSlots('09:00', '20:00', 30);
+    } finally {
+      if (nextBtn) nextBtn.disabled = false;
+    }
+    wizardState.step = 4;
+    refreshWizardContent(container);
+    return;
+  }
+
+  if (step === 4) {
+    if (!wizardState.time) { showToast('Выберите время'); return; }
+    wizardState.step = 5;
+    refreshWizardContent(container);
+    return;
+  }
+
+  if (step === 5) {
+    // Отправляем запись
+    if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = 'Сохранение...'; }
+    try {
+      const body = {
+        service_id: wizardState.service.id,
+        date: wizardState.date,
+        time: wizardState.time,
+        client_name: wizardState.client.name,
+        client_phone: wizardState.client.phone || '',
+        price: wizardState.service.price || 0,
+        duration: wizardState.service.duration || 60,
+        notes: '',
+      };
+      await authFetch('/api/v1/bookings/manual', { method: 'POST', body: JSON.stringify(body) });
+      showToast('Запись создана');
+      // Сброс wizard
+      Object.assign(wizardState, { step: 1, client: null, service: null, date: null, time: null,
+        clientSearch: '', clientSearchResults: [], showNewClientForm: false,
+        newClientName: '', newClientPhone: '', slotsBusy: [], slotsAll: [] });
+      state.wizardCalendarMonth = null;
+      // Возврат на M3 с обновлением
+      state.mpSection = 'bookings';
+      state.masterTab = 'bookings';
+      await loadMpTodayBookings();
+      navigateTo('masterPanel', false);
+    } catch (e) {
+      showToast('Ошибка: ' + e.message);
+      if (nextBtn) { nextBtn.disabled = false; nextBtn.textContent = 'Записать'; }
+    }
+  }
+}
+
+// --- C1 — История бонусов клиента (через JWT) ---
+async function loadBonusHistoryJwt() {
+  try {
+    const data = await authFetch('/api/v1/bonuses/history?limit=50&offset=0');
+    return data;
+  } catch (e) {
+    console.error('loadBonusHistoryJwt:', e);
+    return null;
+  }
+}
+
+function renderBonusNew() {
+  const data = state.bonusHistoryData;
+  const loading = state.bonusHistoryLoading;
+
+  if (loading) {
+    return `
+      <div class="history-screen" style="padding:16px;">
+        <div class="cl-bonus-hero">
+          <div class="cl-bonus-hero-amount">…</div>
+          <div class="cl-bonus-hero-label">бонусов</div>
+          <div class="cl-bonus-hero-hint">1 бонус = 1 ₽ скидки</div>
+        </div>
+        <div class="mp-empty-state"><div class="mp-empty-icon">⏳</div><div class="mp-empty-title">Загрузка...</div></div>
+      </div>`;
+  }
+
+  const balance = data ? data.balance : (CLIENT_BONUS || 0);
+  const transactions = data ? (data.transactions || []) : [];
+
+  let listHTML;
+  if (transactions.length === 0) {
+    listHTML = `
+      <div class="mp-empty-state" style="padding:32px 16px;">
+        <div class="mp-empty-icon" style="font-size:48px;">💎</div>
+        <div class="mp-empty-title" style="font-size:18px;">Бонусных операций пока нет</div>
+        <div class="mp-empty-hint" style="font-size:14px;">Приходите на визит — бонусы начислятся автоматически</div>
+      </div>`;
+  } else {
+    const itemsHTML = transactions.map(t => {
+      const isPlus = t.type === 'credit';
+      const sign = isPlus ? '+' : '−';
+      const amountStr = sign + ' ' + Math.abs(t.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₽';
+      const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('ru-RU') : '';
+      const meta = [dateStr, t.service_name].filter(Boolean).join(' · ');
+      return `
+        <div class="cl-bonus-item">
+          <span class="cl-bonus-amount ${isPlus ? 'plus' : 'minus'}">${amountStr}</span>
+          <div class="cl-bonus-details">
+            <div class="title">${escapeHtml(t.description || (isPlus ? 'Начислено' : 'Списано'))}</div>
+            ${meta ? `<div class="meta">${escapeHtml(meta)}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+    listHTML = `
+      <div class="cl-bonus-section-title">История</div>
+      <div class="cl-bonus-list">${itemsHTML}</div>`;
+  }
+
+  return `
+    <div class="history-screen" style="padding:16px;">
+      <div class="cl-bonus-hero">
+        <div class="cl-bonus-hero-amount">${balance.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽</div>
+        <div class="cl-bonus-hero-label">бонусов</div>
+        <div class="cl-bonus-hero-hint">1 бонус = 1 ₽ скидки</div>
+      </div>
+      ${listHTML}
+    </div>`;
+}
+
+async function initBonusScreen() {
+  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+  const role = typeof getAuthRole === 'function' ? getAuthRole() : 'client';
+  // Используем новый экран только для авторизованных клиентов
+  if (!auth || role !== 'client') return false;
+  state.bonusHistoryLoading = true;
+  state.bonusHistoryData = null;
+  const app = document.getElementById('app');
+  if (app) app.innerHTML = renderBonusNew();
+  const data = await loadBonusHistoryJwt();
+  state.bonusHistoryLoading = false;
+  state.bonusHistoryData = data;
+  if (app && state.currentScreen === 'bonus') app.innerHTML = renderBonusNew();
+  return true;
+}
+
+// --- C4 — Расширенный профиль мастера с полями карт ---
+function renderMasterProfileNew() {
+  const m = MASTER || {};
+  // Читаем поля из MASTER (загружены при инициализации)
+  const yandexMapsUrl = m.yandex_maps_url || '';
+  const address = m.address || '';
+  const studioName = m.studio_name || '';
+
+  return `
+    <div class="master-section-title">Профиль мастера</div>
+    <div class="admin-form">
+      <label class="admin-label">Фото мастера / салона</label>
+      <div class="profile-photo-upload">
+        ${m.avatar ? `<img src="${escapeHtml(m.avatar)}" class="profile-photo-preview" id="profilePhotoPreview">` : `<div class="profile-photo-placeholder" id="profilePhotoPreview">📷 Нажмите чтобы загрузить</div>`}
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none">
+        <button class="admin-btn" id="profilePhotoBtn" style="margin-top:8px;">📷 ${m.avatar ? 'Изменить фото' : 'Загрузить фото'}</button>
+      </div>
+
+      <label class="admin-label">Название салона / имя мастера</label>
+      <input type="text" id="profileName" class="admin-input" value="${(m.name || '').replace(/"/g, '&quot;')}" placeholder="Например: Студия Анны" />
+
+      <label class="admin-label">Описание</label>
+      <textarea id="profileDescription" class="admin-input admin-textarea" rows="3" placeholder="Краткое описание">${m.description || ''}</textarea>
+
+      <label class="admin-label">Телефон</label>
+      <input type="tel" id="profilePhone" class="admin-input" value="${(m.phone || '').replace(/"/g, '&quot;')}" placeholder="+7 (999) 123-45-67" />
+
+      <label class="admin-label">WhatsApp</label>
+      <input type="text" id="profileWhatsapp" class="admin-input" value="${(m.whatsapp_url || '').replace(/"/g, '&quot;')}" placeholder="https://wa.me/79991234567" />
+      <div class="admin-form-hint" style="font-size:12px;color:var(--tg-theme-hint-color,#999);margin:4px 0 8px;">Формат: https://wa.me/79991234567</div>
+
+      <label class="admin-label">Приветственное сообщение (в боте)</label>
+      <textarea id="profileWelcome" class="admin-input admin-textarea" rows="2" placeholder="Текст при нажатии /start в боте">${m.welcome_text || ''}</textarea>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label class="admin-label">Кол-во работ</label>
+          <input type="number" id="profileWorks" class="admin-input" value="${m.works_count || 0}" min="0" />
+        </div>
+        <div style="flex:1;">
+          <label class="admin-label">Лет опыта</label>
+          <input type="number" id="profileYears" class="admin-input" value="${m.years_experience || 0}" min="0" />
+        </div>
+      </div>
+
+      <label class="admin-label">Код доступа к панели мастера</label>
+      <input type="text" id="profileCode" class="admin-input" value="${(m.master_code || '').replace(/"/g, '&quot;')}" placeholder="4 цифры" maxlength="4" />
+    </div>
+
+    <div class="mp-settings-group">
+      <div class="mp-settings-group-title">Контактная информация</div>
+      <div class="mp-settings-field">
+        <input type="url" name="yandex_maps_url" id="profileYandexMaps"
+          placeholder="Ссылка на Яндекс.Карты"
+          value="${(yandexMapsUrl).replace(/"/g, '&quot;')}">
+        <div class="hint">Вставьте ссылку, чтобы клиенты получали маршрут в push-уведомлениях.</div>
+      </div>
+      <div class="mp-settings-field">
+        <input type="text" name="address" id="profileAddress"
+          placeholder="Адрес"
+          value="${(address).replace(/"/g, '&quot;')}">
+      </div>
+      <div class="mp-settings-field">
+        <input type="text" name="studio_name" id="profileStudioName"
+          placeholder="Название студии"
+          value="${(studioName).replace(/"/g, '&quot;')}">
+      </div>
+    </div>
+
+    <button class="booking-confirm-btn" id="saveProfileBtn" style="margin:16px 0;">Сохранить профиль</button>
+    <div id="profileResult" class="broadcast-result"></div>
+  `;
+}
+
+// --- Привязка событий нового мастер-панели ---
+function bindMasterPanelNewEvents(container) {
+  // Бургер — открыть drawer
+  container.querySelector('#mpBurgerBtn')?.addEventListener('click', () => {
+    openMpDrawer();
+    haptic('impact', 'light');
+  });
+
+  // Инит drawer
+  initMpDrawer(container);
+
+  // FAB → открыть wizard
+  container.querySelector('#mpFabBtn')?.addEventListener('click', async () => {
+    // Сбрасываем wizard
+    Object.assign(wizardState, { step: 1, client: null, service: null, date: null, time: null,
+      clientSearch: '', clientSearchResults: [], showNewClientForm: false,
+      newClientName: '', newClientPhone: '', slotsBusy: [], slotsAll: [] });
+    state.wizardCalendarMonth = null;
+    if (!state.masterServices || !state.masterServices.length) {
+      await loadMasterTabData('services');
+    }
+    state.mpSection = 'wizard';
+    state.masterTab = 'wizard';
+    navigateTo('masterPanel', false);
+    haptic('impact', 'light');
+  });
+
+  const section = state.mpSection || state.masterTab || 'bookings';
+
+  // Обработчики wizard
+  if (section === 'wizard') {
+    bindWizardEvents(container);
+    return;
+  }
+
+  // Навигация M4 (calendar)
+  if (section === 'calendar') {
+    container.querySelector('#mpCalPrev')?.addEventListener('click', async () => {
+      const m = state.calendarMonth || new Date();
+      state.calendarMonth = new Date(m.getFullYear(), m.getMonth() - 1, 1);
+      await loadCalendarMonthBookings(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth());
+      refreshMpContent(container);
+    });
+    container.querySelector('#mpCalNext')?.addEventListener('click', async () => {
+      const m = state.calendarMonth || new Date();
+      state.calendarMonth = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      await loadCalendarMonthBookings(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth());
+      refreshMpContent(container);
+    });
+    container.querySelectorAll('.mp-calendar-day[data-date]').forEach(cell => {
+      cell.addEventListener('click', async () => {
+        state.calendarSelectedDate = cell.dataset.date;
+        state.dayViewBookings = null;
+        state.dayViewSummary = null;
+        state.mpSection = 'dayView';
+        state.masterTab = 'dayView';
+        await loadMpDayBookings(state.calendarSelectedDate);
+        navigateTo('masterPanel', false);
+      });
+    });
+  }
+
+  // M5 — кнопка «Назад» в day view
+  if (section === 'dayView') {
+    container.querySelector('#mpDayBackBtn')?.addEventListener('click', () => {
+      state.mpSection = 'calendar';
+      state.masterTab = 'calendar';
+      navigateTo('masterPanel', false);
+    });
+    // FAB на day view → wizard с предустановленной датой
+    container.querySelector('#mpFabBtn')?.addEventListener('click', async () => {
+      Object.assign(wizardState, { step: 1, client: null, service: null,
+        date: state.calendarSelectedDate, time: null,
+        clientSearch: '', clientSearchResults: [], showNewClientForm: false,
+        newClientName: '', newClientPhone: '', slotsBusy: [], slotsAll: [] });
+      state.wizardCalendarMonth = null;
+      if (!state.masterServices || !state.masterServices.length) {
+        await loadMasterTabData('services');
+      }
+      state.mpSection = 'wizard';
+      state.masterTab = 'wizard';
+      navigateTo('masterPanel', false);
+    });
+  }
+
+  // Профиль — расширенный saveProfileBtn
+  if (section === 'profile') {
+    const profilePhotoBtn = container.querySelector('#profilePhotoBtn');
+    const profilePhotoInput = container.querySelector('#profilePhotoInput');
+    if (profilePhotoBtn && profilePhotoInput) {
+      profilePhotoBtn.addEventListener('click', () => profilePhotoInput.click());
+      profilePhotoInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        profilePhotoBtn.disabled = true;
+        profilePhotoBtn.textContent = '⏳ Загрузка...';
+        try {
+          const formData = new FormData();
+          formData.append('photo', file);
+          const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+          const headers = {};
+          if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
+          const resp = await fetch(API_BASE_URL + '/api/v1/upload/' + CURRENT_MASTER_ID, { method: 'POST', headers, body: formData });
+          const data = await resp.json();
+          if (data.url) {
+            await updateMaster(CURRENT_MASTER_ID, { avatar_url: data.url });
+            MASTER.avatar = data.url;
+            profilePhotoBtn.textContent = '✅ Фото загружено';
+          } else {
+            profilePhotoBtn.textContent = '❌ Ошибка';
+          }
+        } catch (err) {
+          profilePhotoBtn.textContent = '❌ ' + err.message;
+        }
+        setTimeout(() => { profilePhotoBtn.disabled = false; profilePhotoBtn.textContent = '📷 Изменить фото'; }, 2000);
+      });
+    }
+
+    const saveProfileBtn = container.querySelector('#saveProfileBtn');
+    if (saveProfileBtn) {
+      saveProfileBtn.addEventListener('click', async () => {
+        const name = container.querySelector('#profileName')?.value.trim();
+        if (!name) {
+          const res = container.querySelector('#profileResult');
+          if (res) { res.textContent = 'Название не может быть пустым'; res.style.color = '#c00'; }
+          return;
+        }
+        saveProfileBtn.disabled = true;
+        saveProfileBtn.textContent = 'Сохранение...';
+        try {
+          const data = {
+            name,
+            description: container.querySelector('#profileDescription')?.value.trim(),
+            phone: container.querySelector('#profilePhone')?.value.trim(),
+            whatsapp_url: container.querySelector('#profileWhatsapp')?.value.trim(),
+            welcome_text: container.querySelector('#profileWelcome')?.value.trim(),
+            works_count: parseInt(container.querySelector('#profileWorks')?.value || '0', 10) || 0,
+            years_experience: parseInt(container.querySelector('#profileYears')?.value || '0', 10) || 0,
+            yandex_maps_url: container.querySelector('#profileYandexMaps')?.value.trim(),
+            address: container.querySelector('#profileAddress')?.value.trim(),
+            studio_name: container.querySelector('#profileStudioName')?.value.trim(),
+          };
+          const master_code = container.querySelector('#profileCode')?.value.trim();
+          if (master_code && master_code.length === 4) data.master_code = master_code;
+
+          const result = await updateMaster(CURRENT_MASTER_ID, data);
+          const res = container.querySelector('#profileResult');
+          if (result) {
+            Object.assign(MASTER, data);
+            if (master_code && master_code.length === 4) MASTER_CODE = master_code;
+            if (res) { res.textContent = '✅ Профиль сохранён'; res.style.color = '#2a2'; }
+            haptic('notification', 'success');
+          } else {
+            if (res) { res.textContent = '❌ Ошибка сохранения'; res.style.color = '#c00'; }
+          }
+        } catch (err) {
+          const res = container.querySelector('#profileResult');
+          if (res) { res.textContent = '❌ ' + err.message; res.style.color = '#c00'; }
+        }
+        saveProfileBtn.disabled = false;
+        saveProfileBtn.textContent = 'Сохранить профиль';
+      });
+    }
+    return;
+  }
+
+  // Для остальных секций переиспользуем старые обработчики admin-tab
+  bindEvents('masterPanel', container);
+}
+
+function refreshMpContent(container) {
+  const content = container.querySelector('#mpPanelContent');
+  if (!content) return;
+  const section = state.mpSection || state.masterTab || 'bookings';
+  switch (section) {
+    case 'bookings':  content.innerHTML = renderMpTodayFeed(); break;
+    case 'calendar':  content.innerHTML = renderMpCalendar(); break;
+    case 'dayView':   content.innerHTML = renderMpDayView(); break;
+    case 'services':  content.innerHTML = renderMasterServicesList(); break;
+    case 'categories': content.innerHTML = renderMasterCategoriesList(); break;
+    case 'schedule':  content.innerHTML = renderMasterSchedule(); break;
+    case 'clients':   content.innerHTML = renderMasterClientsList(); break;
+    case 'broadcast': content.innerHTML = renderBroadcastForm(); break;
+    case 'profile':   content.innerHTML = renderMasterProfileNew(); break;
+    case 'abonements': content.innerHTML = renderMasterAbonements(); break;
+    case 'wizard':    content.innerHTML = renderMpWizard(); break;
+    default: content.innerHTML = renderMpTodayFeed();
+  }
+  // Обновляем статус-бар
+  if (section === 'bookings') {
+    const sb = container.querySelector('.mp-status-bar');
+    if (sb) {
+      const bookings = state.todayBookings || [];
+      const count = bookings.length;
+      const amount = bookings.reduce((s, b) => s + (b.price || 0), 0);
+      sb.innerHTML = `
+        <span class="stat-bookings">${count} ${pluralBookings(count)}</span>
+        <span style="color:var(--tg-theme-hint-color,#999)">·</span>
+        <span class="stat-amount">${amount.toLocaleString('ru-RU')} ₽</span>`;
+    }
+  }
+  bindMasterPanelNewEvents(container);
 }
