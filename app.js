@@ -20,6 +20,46 @@
 // ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
+// Глобальный перехватчик ошибок — показывает падение на экране вместо белого фона.
+// Помогает диагностировать проблемы у пользователей без открытия F12.
+function __showFatalError(label, err) {
+  try {
+    const root = document.getElementById('app') || document.body;
+    if (!root) return;
+    const msg = (err && err.message) ? err.message : String(err);
+    const stack = (err && err.stack) ? String(err.stack).slice(0, 800) : '';
+    root.innerHTML = `
+      <div style="padding:20px;font:14px/1.5 -apple-system,sans-serif;color:#222;background:#fff;min-height:100vh">
+        <div style="font-size:42px;margin-bottom:12px">⚠️</div>
+        <div style="font-weight:700;font-size:18px;margin-bottom:8px">Ошибка загрузки</div>
+        <div style="margin-bottom:12px;color:#666">${label}</div>
+        <pre style="background:#f5f5f5;padding:12px;border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-word;color:#c00;max-height:200px;overflow:auto">${msg}\n\n${stack}</pre>
+        <button onclick="(async()=>{
+          try {
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (const r of regs) await r.unregister();
+            }
+            if (window.caches) {
+              const keys = await caches.keys();
+              for (const k of keys) await caches.delete(k);
+            }
+            localStorage.clear();
+            sessionStorage.clear();
+          } catch(e){}
+          location.reload();
+        })()" style="margin-top:14px;padding:12px 18px;background:#2196F3;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%">Очистить кэш и перезагрузить</button>
+        <div style="margin-top:12px;font-size:12px;color:#999">Если ошибка повторяется — пришлите этот скриншот разработчику</div>
+      </div>
+    `;
+  } catch (e) {
+    // Если даже это упало — пишем в title чтобы было видно хоть что-то
+    document.title = 'ERR: ' + ((err && err.message) || err);
+  }
+}
+window.addEventListener('error', (e) => __showFatalError('JavaScript error', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => __showFatalError('Promise rejection', e.reason));
+
 const tg = window.Telegram?.WebApp;
 
 // Если открыто не в Telegram — включаем тёмную палитру веб-темы
