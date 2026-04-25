@@ -173,33 +173,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   if (pageParamEarly === 'master-login') {
-    // Если мастер уже авторизован — редиректим на его собственную ссылку
-    if (getCurrentUser() && getAuthRole() === 'master') {
-      const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-      const slug = auth?.user?.slug;
+    // Всегда показываем форму логина, даже если уже есть auth.
+    // Прежде редиректили на сохранённый ?master=<slug>, но если мастер был
+    // удалён через супер-админку — пользователь попадал на пустую страницу.
+    // На этой странице явный intent — войти/сменить аккаунт.
+    document.getElementById('app').innerHTML = renderMasterLoginScreen();
+    initMasterLoginHandlers((user) => {
+      const slug = user?.slug;
       if (slug) {
+        localStorage.setItem('current_master_slug', slug);
+        localStorage.setItem('onboardingDone', '1');
         location.replace('/?master=' + slug);
-        return;
+      } else {
+        location.reload();
       }
-      // Нет slug — fallback: продолжаем загрузку (может не сработать)
-    } else {
-      // Показываем экран входа мастера
-      document.getElementById('app').innerHTML = renderMasterLoginScreen();
-      initMasterLoginHandlers((user) => {
-        // После успешного логина сразу редиректим на ?master=<slug>
-        const slug = user?.slug;
-        if (slug) {
-          // Сохраняем slug чтобы при редиректе auth не обнулился проверкой смены мастера
-          localStorage.setItem('current_master_slug', slug);
-          // Мастеру не нужен клиентский онбординг — помечаем как пройденный
-          localStorage.setItem('onboardingDone', '1');
-          location.replace('/?master=' + slug);
-        } else {
-          location.reload();
-        }
-      });
-      return;
-    }
+    });
+    return;
   }
 
   createTabBar();
