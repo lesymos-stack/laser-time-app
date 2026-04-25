@@ -4452,6 +4452,9 @@ function initMpDrawer(container) {
       if (['bookings', 'services', 'categories', 'clients', 'abonements', 'schedule', 'broadcast', 'profile'].includes(section)) {
         await loadMasterTabData(section);
       }
+      // navigateTo делает ранний return если currentScreen уже masterPanel,
+      // поэтому ставим '_refresh' чтобы форсировать перерисовку.
+      state.currentScreen = '_refresh';
       navigateTo('masterPanel', false);
     });
   });
