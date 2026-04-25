@@ -3171,6 +3171,7 @@ function bindEvents(screenName, container) {
         addServiceBtn.addEventListener('click', () => {
           state.editingService = null;
           state.masterTab = 'serviceForm';
+          state.mpSection = 'serviceForm';
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
         });
@@ -3183,6 +3184,7 @@ function bindEvents(screenName, container) {
           const svc = state.masterServices.find(s => s.id === btn.dataset.serviceId);
           state.editingService = { ...svc };
           state.masterTab = 'serviceForm';
+          state.mpSection = 'serviceForm';
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
         });
@@ -3277,6 +3279,7 @@ function bindEvents(screenName, container) {
           haptic('notification', 'success');
           state.editingService = null;
           state.masterTab = 'services';
+          state.mpSection = 'services';
           await loadMasterTabData('services');
           // Обновляем глобальный SERVICES для клиентского каталога
           await reloadGlobalServices();
@@ -3291,6 +3294,7 @@ function bindEvents(screenName, container) {
         addCategoryBtn.addEventListener('click', () => {
           state.editingCategory = null;
           state.masterTab = 'categoryForm';
+          state.mpSection = 'categoryForm';
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
         });
@@ -3303,6 +3307,7 @@ function bindEvents(screenName, container) {
           const cat = state.masterCategories.find(c => c.id === btn.dataset.catId);
           state.editingCategory = { ...cat };
           state.masterTab = 'categoryForm';
+          state.mpSection = 'categoryForm';
           state.currentScreen = '_refresh';
           navigateTo('masterPanel', false);
         });
@@ -3395,6 +3400,7 @@ function bindEvents(screenName, container) {
           haptic('notification', 'success');
           state.editingCategory = null;
           state.masterTab = 'categories';
+          state.mpSection = 'categories';
           await loadMasterTabData('categories');
           await reloadGlobalCategories();
           state.currentScreen = '_refresh';
@@ -4999,6 +5005,7 @@ function bindWizardEvents(container) {
     } else {
       state.mpSection = 'bookings';
       state.masterTab = 'bookings';
+      state.currentScreen = '_refresh';
       navigateTo('masterPanel', false);
     }
   });
@@ -5264,6 +5271,7 @@ async function wizardNext(container) {
       state.mpSection = 'bookings';
       state.masterTab = 'bookings';
       await loadMpTodayBookings();
+      state.currentScreen = '_refresh';
       navigateTo('masterPanel', false);
     } catch (e) {
       showToast('Ошибка: ' + e.message);
@@ -5455,6 +5463,7 @@ function bindMasterPanelNewEvents(container) {
     }
     state.mpSection = 'wizard';
     state.masterTab = 'wizard';
+    state.currentScreen = '_refresh';
     navigateTo('masterPanel', false);
     haptic('impact', 'light');
   });
@@ -5489,6 +5498,7 @@ function bindMasterPanelNewEvents(container) {
         state.mpSection = 'dayView';
         state.masterTab = 'dayView';
         await loadMpDayBookings(state.calendarSelectedDate);
+        state.currentScreen = '_refresh';
         navigateTo('masterPanel', false);
       });
     });
@@ -5499,6 +5509,7 @@ function bindMasterPanelNewEvents(container) {
     container.querySelector('#mpDayBackBtn')?.addEventListener('click', () => {
       state.mpSection = 'calendar';
       state.masterTab = 'calendar';
+      state.currentScreen = '_refresh';
       navigateTo('masterPanel', false);
     });
     // FAB на day view → wizard с предустановленной датой
@@ -5513,6 +5524,7 @@ function bindMasterPanelNewEvents(container) {
       }
       state.mpSection = 'wizard';
       state.masterTab = 'wizard';
+      state.currentScreen = '_refresh';
       navigateTo('masterPanel', false);
     });
   }
