@@ -5595,8 +5595,9 @@ function bindMasterPanelNewEvents(container) {
     return;
   }
 
-  // Для остальных секций переиспользуем старые обработчики admin-tab
-  bindEvents('masterPanel', container);
+  // Старые обработчики admin-tab привязываются в bindEvents('masterPanel')
+  // сразу ПОСЛЕ вызова bindMasterPanelNewEvents (см. case 'masterPanel' в bindEvents).
+  // Дублирующий вызов здесь приводил к бесконечной рекурсии.
 }
 
 function refreshMpContent(container) {
