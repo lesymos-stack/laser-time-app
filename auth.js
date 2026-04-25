@@ -219,6 +219,34 @@ function renderMasterLoginScreen() {
 
 // --- Обработчики логин-экрана ---
 
+// Маска ввода телефона — общая для клиентского и мастерского экранов входа
+function applyPhoneMask(input) {
+  const raw = input.value.replace(/\D/g, '').slice(0, 10);
+  const formatted = formatPhoneMask(raw);
+  if (input.value !== formatted) {
+    const cursorPos = input.selectionStart;
+    const digitsBefore = input.value.slice(0, cursorPos).replace(/\D/g, '').length;
+    input.value = formatted;
+    let newPos = 0;
+    let count = 0;
+    for (let i = 0; i < formatted.length && count < digitsBefore; i++) {
+      newPos = i + 1;
+      if (/\d/.test(formatted[i])) count++;
+    }
+    input.setSelectionRange(newPos, newPos);
+  }
+}
+
+function formatPhoneMask(digits) {
+  if (!digits) return '';
+  let f = '(';
+  f += digits.slice(0, 3);
+  if (digits.length >= 3) f += ') ' + digits.slice(3, 6);
+  if (digits.length >= 6) f += '-' + digits.slice(6, 8);
+  if (digits.length >= 8) f += '-' + digits.slice(8, 10);
+  return f;
+}
+
 function initLoginHandlers(onSuccess) {
   let currentPhone = '';
   let resendInterval = null;
@@ -240,35 +268,6 @@ function initLoginHandlers(onSuccess) {
     loginPhone.addEventListener('input', () => {
       applyPhoneMask(loginPhone);
     });
-  }
-
-  function applyPhoneMask(input) {
-    const raw = input.value.replace(/\D/g, '').slice(0, 10);
-    const formatted = formatPhoneMask(raw);
-    if (input.value !== formatted) {
-      // Запоминаем сколько цифр было до курсора
-      const cursorPos = input.selectionStart;
-      const digitsBefore = input.value.slice(0, cursorPos).replace(/\D/g, '').length;
-      input.value = formatted;
-      // Восстанавливаем курсор по количеству цифр
-      let newPos = 0;
-      let count = 0;
-      for (let i = 0; i < formatted.length && count < digitsBefore; i++) {
-        newPos = i + 1;
-        if (/\d/.test(formatted[i])) count++;
-      }
-      input.setSelectionRange(newPos, newPos);
-    }
-  }
-
-  function formatPhoneMask(digits) {
-    if (!digits) return '';
-    let f = '(';
-    f += digits.slice(0, 3);
-    if (digits.length >= 3) f += ') ' + digits.slice(3, 6);
-    if (digits.length >= 6) f += '-' + digits.slice(6, 8);
-    if (digits.length >= 8) f += '-' + digits.slice(8, 10);
-    return f;
   }
 
   // Отправка кода
