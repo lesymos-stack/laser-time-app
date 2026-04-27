@@ -2857,8 +2857,9 @@ function bindEvents(screenName, container) {
           profilePhotoBtn.disabled = true;
           profilePhotoBtn.textContent = '⏳ Загрузка...';
           try {
+            const compressed = await (typeof compressImage === 'function' ? compressImage(file).catch(() => file) : file);
             const formData = new FormData();
-            formData.append('photo', file);
+            formData.append('file', compressed, file.name || 'photo.jpg');
             const headers = {};
             const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
             if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
@@ -2867,7 +2868,7 @@ function bindEvents(screenName, container) {
               headers,
               body: formData,
             });
-            const data = await resp.json();
+            const data = await resp.json().catch(() => ({}));
             if (data.url) {
               await updateMaster(CURRENT_MASTER_ID, { avatar_url: data.url });
               MASTER.avatar = data.url;
@@ -3349,8 +3350,10 @@ function bindEvents(screenName, container) {
           if (photoFile) {
             try {
               const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+              // Сжимаем перед отправкой (Vercel rewrite limit 4.5MB)
+              const compressed = await (typeof compressImage === 'function' ? compressImage(photoFile).catch(() => photoFile) : photoFile);
               const formData = new FormData();
-              formData.append('photo', photoFile);
+              formData.append('file', compressed, photoFile.name || 'photo.jpg');
               const uploadRes = await fetch(`${API_BASE_URL}/api/v1/upload/${CURRENT_MASTER_ID}`, {
                 method: 'POST',
                 headers: auth ? { 'Authorization': `Bearer ${auth.access_token}` } : {},
@@ -3360,7 +3363,8 @@ function bindEvents(screenName, container) {
                 const uploadData = await uploadRes.json();
                 photoUrl = uploadData.url;
               } else {
-                alert('Ошибка загрузки фото');
+                const errText = await uploadRes.text().catch(() => uploadRes.status);
+                alert('Не удалось загрузить фото: ' + errText);
                 saveCatBtn.disabled = false;
                 saveCatBtn.textContent = state.editingCategory ? 'Сохранить' : 'Создать категорию';
                 return;
@@ -4607,6 +4611,18 @@ function renderMpBookingCard(b) {
   };
   const st = statusMap[b.status] || { cls: 'pending', label: b.status || 'Ожидает' };
 
+  // Кнопки доступны только для активных записей (не отменённых и не завершённых)
+  const showActions = b.status === 'pending' || b.status === 'confirmed';
+  const phoneDigits = b.client_phone ? String(b.client_phone).replace(/\D/g, '') : '';
+  const actionsHTML = showActions ? `
+    <div class="mp-booking-actions" data-booking-id="${escapeHtml(b.id || '')}">
+      <button class="mp-bk-act done" data-act="complete" title="Завершить и начислить бонус">✅ Завершить</button>
+      <button class="mp-bk-act move" data-act="reschedule" title="Перенести запись">📅 Перенести</button>
+      <button class="mp-bk-act cancel" data-act="cancel" title="Отменить запись">🚫 Отменить</button>
+      ${phoneDigits ? `<a class="mp-bk-act call" href="tel:+${phoneDigits}" title="Позвонить">📞</a>` : ''}
+    </div>
+  ` : '';
+
   return `
     <div class="mp-booking-card" data-booking-id="${escapeHtml(b.id || '')}">
       <div class="mp-booking-time-block">
@@ -4617,9 +4633,67 @@ function renderMpBookingCard(b) {
         <div class="mp-booking-client">${escapeHtml(b.client_name || 'Клиент')}</div>
         <div class="mp-booking-service">${escapeHtml(b.service_name || '')}</div>
         ${b.price ? `<div class="mp-booking-price">${b.price.toLocaleString('ru-RU')} ₽</div>` : ''}
+        ${actionsHTML}
       </div>
       <span class="mp-status-badge ${st.cls}">${st.label}</span>
     </div>`;
+}
+
+// Универсальный обработчик кнопок карточки записи (используется в today-feed и dayView)
+async function bindMpBookingActions(container) {
+  container.querySelectorAll('.mp-booking-actions').forEach(group => {
+    const bookingId = group.dataset.bookingId;
+    if (!bookingId) return;
+    group.querySelectorAll('.mp-bk-act[data-act]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        haptic('selection');
+        try {
+          if (act === 'complete') {
+            if (!confirm('Отметить запись как завершённую? Клиенту будет начислен бонус (если включена программа лояльности).')) return;
+            btn.disabled = true; btn.textContent = '...';
+            await API.patch('bookings', `id=eq.${bookingId}`, { status: 'completed' });
+            haptic('notification', 'success');
+          } else if (act === 'cancel') {
+            if (!confirm('Отменить запись? Слот освободится для других клиентов.')) return;
+            btn.disabled = true; btn.textContent = '...';
+            await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
+            haptic('notification', 'warning');
+          } else if (act === 'reschedule') {
+            const newDate = prompt('Новая дата (формат ГГГГ-ММ-ДД, например 2026-05-15):');
+            if (!newDate) return;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { alert('Неверный формат даты. Используй ГГГГ-ММ-ДД'); return; }
+            const newTime = prompt('Новое время (формат ЧЧ:ММ, например 14:30):');
+            if (!newTime) return;
+            if (!/^\d{2}:\d{2}$/.test(newTime)) { alert('Неверный формат времени. Используй ЧЧ:ММ'); return; }
+            btn.disabled = true; btn.textContent = '...';
+            await API.patch('bookings', `id=eq.${bookingId}`, { date: newDate, time: newTime });
+            haptic('notification', 'success');
+          } else {
+            return;
+          }
+          // Перезагружаем текущую секцию
+          const sec = state.mpSection || state.masterTab;
+          if (sec === 'dayView' && state.calendarSelectedDate) {
+            await loadMpDayBookings(state.calendarSelectedDate);
+            await loadCalendarMonthBookings(
+              state.calendarMonth.getFullYear(),
+              state.calendarMonth.getMonth()
+            );
+          } else {
+            await loadMpTodayBookings();
+          }
+          state.currentScreen = '_refresh';
+          navigateTo('masterPanel', false);
+        } catch (err) {
+          alert('Ошибка: ' + (err.message || err));
+          btn.disabled = false;
+          btn.textContent = act === 'complete' ? '✅ Завершить' : act === 'cancel' ? '🚫 Отменить' : '📅 Перенести';
+        }
+      });
+    });
+  });
 }
 
 // --- Загрузить сегодняшние записи через JWT ---
@@ -5461,6 +5535,11 @@ function bindMasterPanelNewEvents(container) {
 
   const section = state.mpSection || state.masterTab || 'bookings';
 
+  // Кнопки на карточках записей (today-feed). dayView получит свои в bindEvents ниже.
+  if (section === 'bookings') {
+    bindMpBookingActions(container);
+  }
+
   // Обработчики wizard
   if (section === 'wizard') {
     bindWizardEvents(container);
@@ -5495,8 +5574,9 @@ function bindMasterPanelNewEvents(container) {
     });
   }
 
-  // M5 — кнопка «Назад» в day view
+  // M5 — кнопка «Назад» в day view + кнопки на карточках записей
   if (section === 'dayView') {
+    bindMpBookingActions(container);
     container.querySelector('#mpDayBackBtn')?.addEventListener('click', () => {
       state.mpSection = 'calendar';
       state.masterTab = 'calendar';
@@ -5532,13 +5612,14 @@ function bindMasterPanelNewEvents(container) {
         profilePhotoBtn.disabled = true;
         profilePhotoBtn.textContent = '⏳ Загрузка...';
         try {
+          const compressed = await (typeof compressImage === 'function' ? compressImage(file).catch(() => file) : file);
           const formData = new FormData();
-          formData.append('photo', file);
+          formData.append('file', compressed, file.name || 'photo.jpg');
           const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
           const headers = {};
           if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
           const resp = await fetch(API_BASE_URL + '/api/v1/upload/' + CURRENT_MASTER_ID, { method: 'POST', headers, body: formData });
-          const data = await resp.json();
+          const data = await resp.json().catch(() => ({}));
           if (data.url) {
             await updateMaster(CURRENT_MASTER_ID, { avatar_url: data.url });
             MASTER.avatar = data.url;

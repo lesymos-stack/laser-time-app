@@ -13,6 +13,34 @@
 
 // === REST API клиент ===
 
+// Сжатие изображения на клиенте перед загрузкой:
+// - max 1600px по большой стороне (для PWA достаточно)
+// - JPEG quality 0.85
+// - возвращает Blob (или оригинал если файл уже маленький / не картинка)
+async function compressImage(file, maxSide = 1600, quality = 0.85) {
+  if (!file || !file.type || !file.type.startsWith('image/')) return file;
+  // PNG с прозрачностью — оставляем как есть, чтобы не потерять альфу,
+  // но всё равно ужимаем размер если слишком большой.
+  if (file.size < 800 * 1024) return file; // <800KB — не трогаем
+  const bitmap = await (typeof createImageBitmap === 'function' ? createImageBitmap(file) : null);
+  if (!bitmap) return file;
+  let { width, height } = bitmap;
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  width = Math.round(width * scale);
+  height = Math.round(height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const blob = await new Promise(res => canvas.toBlob(res, mime, quality));
+  if (!blob) return file;
+  // Если сжатие дало больше — оставляем оригинал
+  return blob.size < file.size ? blob : file;
+}
+
+
 const API = {
   url: API_BASE_URL,  // из config.js
   key: API_KEY,       // из config.js
@@ -111,8 +139,11 @@ const API = {
     }
     try {
       const masterId = filePath.split('/')[0] || 'general';
+      // Сжимаем фото перед отправкой (Vercel rewrite ограничивает body 4.5MB).
+      // compressImage gracefully возвращает оригинал, если что-то не так.
+      const compressed = await (typeof compressImage === 'function' ? compressImage(file).catch(() => file) : file);
       const formData = new FormData();
-      formData.append('file', file, file.name || 'photo.jpg');
+      formData.append('file', compressed, file.name || 'photo.jpg');
       const res = await fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${auth.access_token}` },

@@ -3911,6 +3911,7 @@ body.mp-drawer-open .mp-drawer {
 }
 
 .mp-calendar-day {
+  position: relative;
   height: 44px;
   display: flex;
   flex-direction: column;
@@ -3958,12 +3959,14 @@ body.mp-drawer-open .mp-drawer {
 }
 
 .mp-calendar-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--tg-theme-button-color, #007AFF);
+  background: #FF4081;
   position: absolute;
-  bottom: 3px;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .mp-calendar-day.today .mp-calendar-dot {
@@ -3989,6 +3992,32 @@ body.mp-drawer-open .mp-drawer {
   margin-bottom: 8px;
   font-family: inherit;
 }
+
+.mp-booking-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.mp-bk-act {
+  flex: 1 1 auto;
+  min-width: 88px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: filter 100ms;
+}
+.mp-bk-act:hover { filter: brightness(0.95); }
+.mp-bk-act:disabled { opacity: 0.5; cursor: wait; }
+.mp-bk-act.done { background: #4CAF50; color: #fff; }
+.mp-bk-act.move { background: #FF9800; color: #fff; }
+.mp-bk-act.cancel { background: #F44336; color: #fff; }
+.mp-bk-act.call { flex: 0 0 44px; min-width: 44px; background: #2196F3; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
 
 .mp-day-screen-header .date-title {
   font-size: 26px;
