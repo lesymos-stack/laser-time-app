@@ -2819,9 +2819,11 @@ function bindEvents(screenName, container) {
               }
             }
 
-            // Также отправляем через Telegram-бот (для TG-клиентов)
+            // Также отправляем через Telegram-бот (для TG-клиентов).
+            // Endpoint /api/broadcast — это Vercel Serverless Function на app.beautyplatform.ru,
+            // НЕ на api.beautyplatform.ru, поэтому шлём на тот же origin что и текущая страница.
             try {
-              await fetch(`${API_BASE_URL}/api/broadcast`, {
+              await fetch('/api/broadcast', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

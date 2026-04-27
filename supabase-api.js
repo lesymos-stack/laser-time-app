@@ -468,9 +468,17 @@ async function updateService(serviceId, data) {
   return API.patch('services', `id=eq.${serviceId}`, data);
 }
 
-// Удалить услугу
+// Удалить услугу — пробуем hard-delete, при FK violation падаем в soft-delete (is_active=false).
+// FK violation возникает если на услугу есть booking — тогда нельзя удалить физически.
 async function deleteService(serviceId) {
-  return API.delete('services', `id=eq.${serviceId}`);
+  try {
+    return await API.delete('services', `id=eq.${serviceId}`);
+  } catch (e) {
+    if (String(e?.message || '').includes('409') || String(e?.message || '').toLowerCase().includes('записи')) {
+      return await API.patch('services', `id=eq.${serviceId}`, { is_active: false });
+    }
+    throw e;
+  }
 }
 
 // Загрузить фото услуги
@@ -497,9 +505,16 @@ async function updateCategory(categoryId, data) {
   return API.patch('categories', `id=eq.${categoryId}`, data);
 }
 
-// Удалить категорию
+// Удалить категорию — попытка hard-delete, при FK fallback в soft-delete.
 async function deleteCategory(categoryId) {
-  return API.delete('categories', `id=eq.${categoryId}`);
+  try {
+    return await API.delete('categories', `id=eq.${categoryId}`);
+  } catch (e) {
+    if (String(e?.message || '').includes('409') || String(e?.message || '').toLowerCase().includes('категори')) {
+      return await API.patch('categories', `id=eq.${categoryId}`, { is_active: false });
+    }
+    throw e;
+  }
 }
 
 // === Абонементы ===
@@ -584,11 +599,14 @@ async function debitBonus(masterId, clientTgId, amount, phone) {
   const balance = parseFloat(client.bonus_balance || 0);
   if (amount > balance) return false;
 
-  // Создаём транзакцию списания
+  // Создаём транзакцию списания. amount всегда положительный — направление
+  // определяется типом (debit). История считается формулой:
+  //   SUM(CASE WHEN type='credit' THEN amount ELSE -amount END)
+  // → отрицательный amount при debit давал бы двойную инверсию (+amount).
   await API.post('bonus_transactions', {
     master_id: masterId,
     client_id: client.id,
-    amount: -amount,
+    amount: amount,
     type: 'debit',
     description: `Списание бонусов за услугу`,
   });
