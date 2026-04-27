@@ -592,9 +592,11 @@ async function handleRequest(req, res) {
           clientId = clientSearch.rows[0].id;
         } else {
           try {
+            // tg_user_id NOT NULL → для веб-клиентов используем 0 (плейсхолдер).
+            // Реальный TG-id появится только если клиент позже залогинится через бота.
             const clientInsert = await pool.query(
-              `INSERT INTO clients (master_id, phone, first_name, created_at)
-               VALUES ($1, $2, $3, NOW()) RETURNING id`,
+              `INSERT INTO clients (master_id, tg_user_id, phone, first_name, auth_source, created_at)
+               VALUES ($1, 0, $2, $3, 'manual', NOW()) RETURNING id`,
               [masterId, phoneVal, client_name]
             );
             clientId = clientInsert.rows[0].id;

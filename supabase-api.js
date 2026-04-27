@@ -105,7 +105,10 @@ const API = {
   // Загрузка файла на VPS
   async uploadFile(bucket, filePath, file) {
     const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-    if (!auth) return null;
+    if (!auth) {
+      if (typeof alert === 'function') alert('Не загружено: вы не авторизованы. Войдите в кабинет мастера заново.');
+      return null;
+    }
     try {
       const masterId = filePath.split('/')[0] || 'general';
       const formData = new FormData();
@@ -115,11 +118,17 @@ const API = {
         headers: { 'Authorization': `Bearer ${auth.access_token}` },
         body: formData,
       });
-      if (!res.ok) { console.error('Upload failed:', await res.text()); return null; }
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.status);
+        console.error('Upload failed:', errText);
+        if (typeof alert === 'function') alert('Не удалось загрузить фото: ' + (res.status === 401 ? 'сессия истекла, войдите заново' : errText));
+        return null;
+      }
       const data = await res.json();
       return data.url || null;
     } catch (err) {
       console.error('Upload error:', err.message);
+      if (typeof alert === 'function') alert('Ошибка сети при загрузке фото: ' + err.message);
       return null;
     }
   },
