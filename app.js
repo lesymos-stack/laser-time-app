@@ -4639,6 +4639,43 @@ function renderMpBookingCard(b) {
     </div>`;
 }
 
+// Простой модальный диалог выбора даты+времени для переноса записи.
+// Возвращает {date:'YYYY-MM-DD', time:'HH:MM'} или null (отмена).
+function pickDateTime(initialDate, initialTime) {
+  return new Promise((resolve) => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.2)">
+        <div style="font-weight:700;font-size:18px;margin-bottom:16px;color:#222">Перенести запись</div>
+        <label style="display:block;font-size:13px;color:#666;margin-bottom:6px">Новая дата</label>
+        <input type="date" id="__pkDate" min="${todayStr}" value="${initialDate || todayStr}" style="width:100%;padding:12px;font-size:16px;border:1px solid #ddd;border-radius:10px;margin-bottom:14px;box-sizing:border-box">
+        <label style="display:block;font-size:13px;color:#666;margin-bottom:6px">Новое время</label>
+        <input type="time" id="__pkTime" value="${initialTime || '10:00'}" step="900" style="width:100%;padding:12px;font-size:16px;border:1px solid #ddd;border-radius:10px;margin-bottom:18px;box-sizing:border-box">
+        <div style="display:flex;gap:8px">
+          <button id="__pkCancel" style="flex:1;padding:12px;background:#eee;color:#333;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer">Отмена</button>
+          <button id="__pkOk" style="flex:1;padding:12px;background:#FF9800;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer">Перенести</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = (val) => { overlay.remove(); resolve(val); };
+    overlay.querySelector('#__pkCancel').addEventListener('click', () => close(null));
+    overlay.querySelector('#__pkOk').addEventListener('click', () => {
+      const d = overlay.querySelector('#__pkDate').value;
+      const t = overlay.querySelector('#__pkTime').value;
+      if (!d || !t) { alert('Заполни дату и время'); return; }
+      close({ date: d, time: t });
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+  });
+}
+
 // Универсальный обработчик кнопок карточки записи (используется в today-feed и dayView)
 async function bindMpBookingActions(container) {
   container.querySelectorAll('.mp-booking-actions').forEach(group => {
@@ -4661,14 +4698,10 @@ async function bindMpBookingActions(container) {
             await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
             haptic('notification', 'warning');
           } else if (act === 'reschedule') {
-            const newDate = prompt('Новая дата (формат ГГГГ-ММ-ДД, например 2026-05-15):');
-            if (!newDate) return;
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { alert('Неверный формат даты. Используй ГГГГ-ММ-ДД'); return; }
-            const newTime = prompt('Новое время (формат ЧЧ:ММ, например 14:30):');
-            if (!newTime) return;
-            if (!/^\d{2}:\d{2}$/.test(newTime)) { alert('Неверный формат времени. Используй ЧЧ:ММ'); return; }
+            const picked = await pickDateTime();
+            if (!picked) return;
             btn.disabled = true; btn.textContent = '...';
-            await API.patch('bookings', `id=eq.${bookingId}`, { date: newDate, time: newTime });
+            await API.patch('bookings', `id=eq.${bookingId}`, { date: picked.date, time: picked.time });
             haptic('notification', 'success');
           } else {
             return;
@@ -4677,10 +4710,10 @@ async function bindMpBookingActions(container) {
           const sec = state.mpSection || state.masterTab;
           if (sec === 'dayView' && state.calendarSelectedDate) {
             await loadMpDayBookings(state.calendarSelectedDate);
-            await loadCalendarMonthBookings(
-              state.calendarMonth.getFullYear(),
-              state.calendarMonth.getMonth()
-            );
+            // calendarMonth может быть null если попали в dayView не через календарь
+            const cm = state.calendarMonth || new Date(state.calendarSelectedDate + 'T00:00:00');
+            state.calendarMonth = cm;
+            await loadCalendarMonthBookings(cm.getFullYear(), cm.getMonth());
           } else {
             await loadMpTodayBookings();
           }

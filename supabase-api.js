@@ -14,17 +14,32 @@
 // === REST API клиент ===
 
 // Сжатие изображения на клиенте перед загрузкой:
-// - max 1600px по большой стороне (для PWA достаточно)
-// - JPEG quality 0.85
-// - возвращает Blob (или оригинал если файл уже маленький / не картинка)
-async function compressImage(file, maxSide = 1600, quality = 0.85) {
+// - max 1280px по большой стороне (для PWA достаточно)
+// - JPEG quality 0.82 → итог ~150-400KB
+// - надёжный путь через <img> + canvas (работает в Safari/Chrome/Firefox/Edge)
+// - возвращает Blob (или оригинал если файл < 200KB или не картинка)
+async function compressImage(file, maxSide = 1280, quality = 0.82) {
   if (!file || !file.type || !file.type.startsWith('image/')) return file;
-  // PNG с прозрачностью — оставляем как есть, чтобы не потерять альфу,
-  // но всё равно ужимаем размер если слишком большой.
-  if (file.size < 800 * 1024) return file; // <800KB — не трогаем
-  const bitmap = await (typeof createImageBitmap === 'function' ? createImageBitmap(file) : null);
-  if (!bitmap) return file;
-  let { width, height } = bitmap;
+  if (file.size < 200 * 1024) return file; // <200KB — не трогаем
+  // SVG не сжимаем canvas-ом
+  if (file.type === 'image/svg+xml') return file;
+
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('FileReader failed'));
+    reader.readAsDataURL(file);
+  });
+
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error('Image load failed'));
+    im.src = dataUrl;
+  });
+
+  let { naturalWidth: width, naturalHeight: height } = img;
+  if (!width || !height) return file;
   const scale = Math.min(1, maxSide / Math.max(width, height));
   width = Math.round(width * scale);
   height = Math.round(height * scale);
@@ -32,11 +47,11 @@ async function compressImage(file, maxSide = 1600, quality = 0.85) {
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-  const blob = await new Promise(res => canvas.toBlob(res, mime, quality));
+  ctx.drawImage(img, 0, 0, width, height);
+  // PNG с прозрачностью теряет альфу при → JPEG, но для бьюти-фото это OK
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
   if (!blob) return file;
-  // Если сжатие дало больше — оставляем оригинал
+  // Если сжатие дало больше — оставляем оригинал (например файл уже сильно сжат)
   return blob.size < file.size ? blob : file;
 }
 
