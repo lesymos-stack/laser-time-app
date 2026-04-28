@@ -1773,7 +1773,7 @@ function showConsentPopup() {
     </div>
   `;
   document.body.appendChild(overlay);
-  overlay.querySelector('#consentPopupClose').addEventListener('click', () => {
+  overlay.querySelector('#consentPopupClose')?.addEventListener('click', () => {
     overlay.remove();
   });
   overlay.addEventListener('click', (e) => {
@@ -3798,10 +3798,11 @@ function showOfferIfNeeded() {
     setTimeout(() => overlay.remove(), 300);
   };
 
-  overlay.querySelector('#offerSkipBtn').addEventListener('click', closeOffer);
-  overlay.querySelector('.offer-btn').addEventListener('click', () => {
-    closeOffer();
-  });
+  // Опциональные кнопки: skip может отсутствовать в кастомных рендерах,
+  // .offer-btn рендерится только если у мастера настроен Telegram-бот (botLink).
+  // Без guard'а — TypeError на null.addEventListener сразу после SMS-входа.
+  overlay.querySelector('#offerSkipBtn')?.addEventListener('click', closeOffer);
+  overlay.querySelector('.offer-btn')?.addEventListener('click', closeOffer);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeOffer();
   });
