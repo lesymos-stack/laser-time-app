@@ -70,6 +70,28 @@ async function sendPushToPhone(phone, { title, body, type = 'info', masterId = n
 // Можно вынести в колонку masters.loyalty_percent позже.
 const BONUS_PERCENT = parseInt(process.env.BONUS_PERCENT || '5', 10);
 
+// Форматирование даты из БД (Date object или строка) → "28 апреля"
+function formatDateRu(dateValue) {
+  if (!dateValue) return '';
+  let dateStr;
+  if (dateValue instanceof Date) {
+    dateStr = dateValue.toISOString().slice(0, 10);
+  } else {
+    dateStr = String(dateValue).slice(0, 10);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return '';
+  try {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  } catch {
+    return '';
+  }
+}
+
+function formatTimeRu(timeValue) {
+  if (!timeValue) return '';
+  return String(timeValue).slice(0, 5);
+}
+
 if (!process.env.API_SECRET) {
   console.error('missing env: API_SECRET');
   process.exit(1);
@@ -690,10 +712,9 @@ async function handleRequest(req, res) {
 
       // Push клиенту (если у него есть подписка по телефону)
       if (client_phone) {
-        const dateRu = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
         sendPushToPhone(client_phone, {
           title: 'Вы записаны',
-          body: `${serviceName} · ${dateRu} в ${time.slice(0,5)}`,
+          body: `${serviceName} · ${formatDateRu(date)} в ${formatTimeRu(time)}`,
           type: 'booking_created',
           masterId,
           bookingId: booking.id,
@@ -973,14 +994,18 @@ async function handleRequest(req, res) {
               filters.push(`"status" IN ('confirmed', 'pending')`);
             }
           }
-          // Notifications — только свои (по JWT)
+          // Notifications — только свои (по JWT). Сравниваем нормализованные
+          // последние 10 цифр, потому что user_phone в БД может быть в формате
+          // '+79886...', '79886...', '89886...', '9886...' (разные хуки писали
+          // в разное время) — а JWT содержит один конкретный формат.
           if (table === 'notifications') {
             const jwtUser = getUserFromRequest(req);
             if (!jwtUser || !jwtUser.phone) {
               sendError(res, 'Unauthorized', 401); return;
             }
-            filters.push(`"user_phone" = $${values.length + 1}`);
-            values.push(jwtUser.phone);
+            const phoneNorm = String(jwtUser.phone).replace(/\D/g, '').slice(-10);
+            filters.push(`right(regexp_replace("user_phone", '\\D', '', 'g'), 10) = $${values.length + 1}`);
+            values.push(phoneNorm);
           }
         }
 
@@ -1062,10 +1087,10 @@ async function handleRequest(req, res) {
             const b = result.rows[0];
             const mRes = await pool.query('SELECT phone, name FROM masters WHERE id = $1', [b.master_id]);
             if (mRes.rows[0]?.phone) {
-              const dRu = b.date ? new Date(String(b.date) + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+              const dRu = formatDateRu(b.date);
               sendPushToPhone(mRes.rows[0].phone, {
                 title: 'Новая запись',
-                body: `${b.client_name || 'Клиент'} · ${dRu} в ${String(b.time || '').slice(0,5)}`,
+                body: `${b.client_name || 'Клиент'} · ${dRu} в ${formatTimeRu(b.time)}`,
                 type: 'booking_new',
                 masterId: b.master_id,
                 bookingId: b.id,
@@ -1147,19 +1172,19 @@ async function handleRequest(req, res) {
             if (!row.client_phone) continue;
             try {
               if (patchData.status === 'cancelled') {
-                const dRu = row.date ? new Date(String(row.date) + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+                const dRu = formatDateRu(row.date);
                 sendPushToPhone(row.client_phone, {
                   title: 'Запись отменена',
-                  body: dRu ? `Ваша запись на ${dRu} в ${String(row.time).slice(0,5)} отменена` : 'Ваша запись отменена',
+                  body: dRu ? `Ваша запись на ${dRu} в ${formatTimeRu(row.time)} отменена` : 'Ваша запись отменена',
                   type: 'booking_cancelled',
                   masterId: row.master_id,
                   bookingId: row.id,
                 }).catch(() => {});
               } else if (patchData.date || patchData.time) {
-                const dRu = row.date ? new Date(String(row.date) + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+                const dRu = formatDateRu(row.date);
                 sendPushToPhone(row.client_phone, {
                   title: 'Запись перенесена',
-                  body: dRu ? `Новое время: ${dRu} в ${String(row.time).slice(0,5)}` : 'Время записи изменено',
+                  body: dRu ? `Новое время: ${dRu} в ${formatTimeRu(row.time)}` : 'Время записи изменено',
                   type: 'booking_rescheduled',
                   masterId: row.master_id,
                   bookingId: row.id,
