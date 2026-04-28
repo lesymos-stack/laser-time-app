@@ -8,11 +8,67 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const busboy = require('busboy');
+const webpush = require('web-push');
 const { pool } = require('./db');
 const { sendCode, verifyCode, refreshAccessToken, getUserFromRequest } = require('./auth');
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// VAPID для отправки web-push
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  const subject = process.env.VAPID_SUBJECT || process.env.VAPID_EMAIL || 'mailto:noreply@beautyplatform.ru';
+  webpush.setVapidDetails(subject, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+}
+
+// Сохраняет notification в БД и рассылает push всем активным подпискам этого телефона.
+// Молча проглатывает ошибки конкретных подписок (битые сертификаты и пр.).
+async function sendPushToPhone(phone, { title, body, type = 'info', masterId = null, bookingId = null, data = null } = {}) {
+  if (!phone) return;
+  const phoneNorm = String(phone).replace(/\D/g, '').slice(-10);
+  if (phoneNorm.length !== 10) return;
+  try {
+    // 1. Сохраняем in-app notification (для колокольчика)
+    await pool.query(
+      `INSERT INTO notifications (user_phone, master_id, type, title, body, read, created_at, booking_id, data)
+       VALUES ($1, $2, $3, $4, $5, false, NOW(), $6, $7)`,
+      [phoneNorm, masterId, type, title, body, bookingId, data ? JSON.stringify(data) : null]
+    );
+  } catch (e) {
+    console.warn('notification insert failed:', e.message);
+  }
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  try {
+    // 2. Рассылаем web-push всем подпискам с этим телефоном (или нормализованным)
+    const subs = await pool.query(
+      `SELECT endpoint, p256dh, auth FROM push_subscriptions
+       WHERE right(regexp_replace(user_phone, '\\D', '', 'g'), 10) = $1`,
+      [phoneNorm]
+    );
+    const payload = JSON.stringify({ title, body, data: { type, masterId, bookingId, ...(data || {}) } });
+    for (const sub of subs.rows) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload
+        );
+      } catch (err) {
+        // Удаляем мёртвые подписки (410 Gone)
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+        } else {
+          console.warn('push send failed:', err.statusCode || err.message);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('sendPushToPhone error:', e.message);
+  }
+}
+
+// Процент бонусной программы (от стоимости услуги при «Завершить»).
+// Можно вынести в колонку masters.loyalty_percent позже.
+const BONUS_PERCENT = parseInt(process.env.BONUS_PERCENT || '5', 10);
 
 if (!process.env.API_SECRET) {
   console.error('missing env: API_SECRET');
@@ -632,6 +688,18 @@ async function handleRequest(req, res) {
       const booking = bookingResult.rows[0];
       booking.service_name = serviceName;
 
+      // Push клиенту (если у него есть подписка по телефону)
+      if (client_phone) {
+        const dateRu = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+        sendPushToPhone(client_phone, {
+          title: 'Вы записаны',
+          body: `${serviceName} · ${dateRu} в ${time.slice(0,5)}`,
+          type: 'booking_created',
+          masterId,
+          bookingId: booking.id,
+        }).catch(() => {});
+      }
+
       sendJSON(res, booking, 201);
     } catch (err) {
       console.error('bookings/manual error:', err.message, err.code, err.constraint);
@@ -681,6 +749,118 @@ async function handleRequest(req, res) {
       });
     } catch (err) {
       console.error('bookings/today error:', err.message);
+      sendError(res, err.message, 500);
+    }
+    return;
+  }
+
+  // ----------------------------------------------------------------
+  // POST /api/v1/bookings/:id/complete — мастер закрывает запись и
+  // система автоматически начисляет бонус клиенту (BONUS_PERCENT от цены)
+  // Возвращает { ok, bonus_amount, new_balance }
+  // ----------------------------------------------------------------
+  if (req.method === 'POST'
+      && pathParts[0] === 'api' && pathParts[1] === 'v1'
+      && pathParts[2] === 'bookings' && pathParts[4] === 'complete') {
+    const user = getUserFromRequest(req);
+    if (!user) { sendError(res, 'Unauthorized', 401); return; }
+    try {
+      const masterId = await resolveMasterId(user);
+      if (!masterId) { sendError(res, 'Forbidden: master only', 403); return; }
+      const bookingId = pathParts[3];
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!UUID_RE.test(bookingId)) { sendError(res, 'Invalid booking id', 400); return; }
+
+      // Загружаем booking + проверяем что он принадлежит этому мастеру
+      const bRes = await pool.query(
+        `SELECT b.*, s.name AS service_name FROM bookings b
+         LEFT JOIN services s ON b.service_id = s.id
+         WHERE b.id = $1 AND b.master_id = $2 LIMIT 1`,
+        [bookingId, masterId]
+      );
+      if (!bRes.rows.length) { sendError(res, 'Booking not found', 404); return; }
+      const booking = bRes.rows[0];
+      if (booking.status === 'completed') {
+        sendError(res, 'Запись уже завершена', 409);
+        return;
+      }
+      if (booking.status === 'cancelled') {
+        sendError(res, 'Нельзя завершить отменённую запись', 409);
+        return;
+      }
+
+      // Считаем бонус: BONUS_PERCENT% от цены, минимум 0
+      const price = parseFloat(booking.price || 0);
+      const bonusAmount = Math.floor(price * BONUS_PERCENT / 100);
+
+      // Находим клиента по client_phone (по нормализованному телефону)
+      let clientId = null;
+      let newBalance = null;
+      if (booking.client_phone && bonusAmount > 0) {
+        const phoneNorm = String(booking.client_phone).replace(/\D/g, '').slice(-10);
+        const cRes = await pool.query(
+          `SELECT id, COALESCE(bonus_balance, 0) AS bonus_balance FROM clients
+           WHERE master_id = $1
+             AND right(regexp_replace(phone, '\\D', '', 'g'), 10) = $2
+           LIMIT 1`,
+          [masterId, phoneNorm]
+        );
+        if (cRes.rows.length) {
+          clientId = cRes.rows[0].id;
+          const balance = parseFloat(cRes.rows[0].bonus_balance);
+          newBalance = balance + bonusAmount;
+          // Транзакция: запись + начисление + обновление баланса
+          await pool.query('BEGIN');
+          try {
+            await pool.query(
+              `INSERT INTO bonus_transactions (master_id, client_id, booking_id, amount, type, description, created_at)
+               VALUES ($1, $2, $3, $4, 'credit', $5, NOW())`,
+              [masterId, clientId, bookingId, bonusAmount, `Бонус ${BONUS_PERCENT}% за «${booking.service_name || 'услугу'}»`]
+            );
+            await pool.query(
+              `UPDATE clients SET bonus_balance = $1 WHERE id = $2`,
+              [newBalance, clientId]
+            );
+            await pool.query(
+              `UPDATE bookings SET status = 'completed', bonus_credited = true WHERE id = $1`,
+              [bookingId]
+            );
+            await pool.query('COMMIT');
+          } catch (e) {
+            await pool.query('ROLLBACK');
+            throw e;
+          }
+        } else {
+          // Клиент не найден в clients (например, гостевая запись без регистрации)
+          await pool.query(`UPDATE bookings SET status = 'completed' WHERE id = $1`, [bookingId]);
+        }
+      } else {
+        await pool.query(`UPDATE bookings SET status = 'completed' WHERE id = $1`, [bookingId]);
+      }
+
+      // Push клиенту: спасибо + начисление
+      if (booking.client_phone && bonusAmount > 0) {
+        sendPushToPhone(booking.client_phone, {
+          title: 'Спасибо за визит!',
+          body: `Начислено ${bonusAmount} бонусов · Услуга «${booking.service_name || ''}»`,
+          type: 'bonus_credited',
+          masterId,
+          bookingId,
+          data: { bonus_amount: bonusAmount, new_balance: newBalance },
+        }).catch(() => {});
+      }
+
+      sendJSON(res, {
+        ok: true,
+        bonus_amount: bonusAmount,
+        bonus_percent: BONUS_PERCENT,
+        new_balance: newBalance,
+        client_phone: booking.client_phone,
+        client_name: booking.client_name,
+        booking_id: bookingId,
+      });
+    } catch (err) {
+      console.error('bookings/complete error:', err.message);
       sendError(res, err.message, 500);
     }
     return;
@@ -875,6 +1055,25 @@ async function handleRequest(req, res) {
 
         const sql = `INSERT INTO "${table}" (${keys.map(k => `"${k}"`).join(',')}) VALUES (${placeholders.join(',')}) RETURNING *`;
         const result = await pool.query(sql, vals);
+
+        // Push мастеру когда клиент сам создаёт запись (через клиентский поток)
+        if (table === 'bookings' && result.rows[0]) {
+          try {
+            const b = result.rows[0];
+            const mRes = await pool.query('SELECT phone, name FROM masters WHERE id = $1', [b.master_id]);
+            if (mRes.rows[0]?.phone) {
+              const dRu = b.date ? new Date(String(b.date) + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+              sendPushToPhone(mRes.rows[0].phone, {
+                title: 'Новая запись',
+                body: `${b.client_name || 'Клиент'} · ${dRu} в ${String(b.time || '').slice(0,5)}`,
+                type: 'booking_new',
+                masterId: b.master_id,
+                bookingId: b.id,
+              }).catch(() => {});
+            }
+          } catch (e) { /* swallow */ }
+        }
+
         sendJSON(res, result.rows, 201);
         break;
       }
@@ -941,6 +1140,35 @@ async function handleRequest(req, res) {
 
         const sql = `UPDATE "${table}" SET ${setClauses.join(', ')} WHERE ${filters.join(' AND ')} RETURNING *`;
         const result = await pool.query(sql, allValues);
+
+        // Push клиенту при изменении его записи мастером (cancel/reschedule)
+        if (table === 'bookings' && authLevel !== 'service') {
+          for (const row of result.rows) {
+            if (!row.client_phone) continue;
+            try {
+              if (patchData.status === 'cancelled') {
+                const dRu = row.date ? new Date(String(row.date) + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+                sendPushToPhone(row.client_phone, {
+                  title: 'Запись отменена',
+                  body: dRu ? `Ваша запись на ${dRu} в ${String(row.time).slice(0,5)} отменена` : 'Ваша запись отменена',
+                  type: 'booking_cancelled',
+                  masterId: row.master_id,
+                  bookingId: row.id,
+                }).catch(() => {});
+              } else if (patchData.date || patchData.time) {
+                const dRu = row.date ? new Date(String(row.date) + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
+                sendPushToPhone(row.client_phone, {
+                  title: 'Запись перенесена',
+                  body: dRu ? `Новое время: ${dRu} в ${String(row.time).slice(0,5)}` : 'Время записи изменено',
+                  type: 'booking_rescheduled',
+                  masterId: row.master_id,
+                  bookingId: row.id,
+                }).catch(() => {});
+              }
+            } catch (e) { /* push errors swallowed */ }
+          }
+        }
+
         sendJSON(res, result.rows);
         break;
       }

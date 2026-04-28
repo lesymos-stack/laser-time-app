@@ -4688,10 +4688,19 @@ async function bindMpBookingActions(container) {
         haptic('selection');
         try {
           if (act === 'complete') {
-            if (!confirm('Отметить запись как завершённую? Клиенту будет начислен бонус (если включена программа лояльности).')) return;
+            if (!confirm('Отметить запись как завершённую? Клиенту будет начислен бонус.')) return;
             btn.disabled = true; btn.textContent = '...';
-            await API.patch('bookings', `id=eq.${bookingId}`, { status: 'completed' });
+            // Вызываем endpoint который атомарно: меняет статус, начисляет бонус, шлёт push клиенту
+            const result = await authFetch('/api/v1/bookings/' + bookingId + '/complete', { method: 'POST' });
             haptic('notification', 'success');
+            const sum = result?.bonus_amount || 0;
+            const balance = result?.new_balance;
+            if (sum > 0) {
+              const balanceTxt = (balance != null) ? `\nБаланс клиента: ${balance.toLocaleString('ru-RU')} ₽` : '';
+              alert(`✅ Запись завершена\nНачислено клиенту: ${sum.toLocaleString('ru-RU')} ₽ бонусов${balanceTxt}`);
+            } else {
+              alert('✅ Запись завершена');
+            }
           } else if (act === 'cancel') {
             if (!confirm('Отменить запись? Слот освободится для других клиентов.')) return;
             btn.disabled = true; btn.textContent = '...';
