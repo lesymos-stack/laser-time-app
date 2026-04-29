@@ -3993,6 +3993,24 @@ body.mp-drawer-open .mp-drawer {
   font-family: inherit;
 }
 
+.mp-bell-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: 8px;
+  transition: background 120ms;
+}
+.mp-bell-btn:hover { background: rgba(0,0,0,0.1); }
+
 .mp-booking-actions {
   display: flex;
   gap: 6px;

@@ -4552,6 +4552,7 @@ function renderMasterPanelNew() {
       <div class="mp-header">
         <button class="mp-burger-btn" id="mpBurgerBtn">☰</button>
         <div class="mp-header-title">${escapeHtml(m.name || 'Панель мастера')}</div>
+        <button class="mp-bell-btn" id="heroBell" aria-label="Уведомления">🔔</button>
         ${avatarHTML}
       </div>
       ${statusBarHTML}
@@ -5555,6 +5556,13 @@ function bindMasterPanelNewEvents(container) {
     openMpDrawer();
     haptic('impact', 'light');
   });
+
+  // Колокольчик в шапке — открывает панель уведомлений (новые записи и пр.)
+  container.querySelector('#heroBell')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (typeof toggleNotificationPanel === 'function') toggleNotificationPanel();
+  });
+  if (typeof refreshNotifCount === 'function') refreshNotifCount();
 
   // Инит drawer
   initMpDrawer(container);

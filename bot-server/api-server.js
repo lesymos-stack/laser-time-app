@@ -1081,17 +1081,37 @@ async function handleRequest(req, res) {
         const sql = `INSERT INTO "${table}" (${keys.map(k => `"${k}"`).join(',')}) VALUES (${placeholders.join(',')}) RETURNING *`;
         const result = await pool.query(sql, vals);
 
-        // Push мастеру когда клиент сам создаёт запись (через клиентский поток)
+        // Push при создании записи: и клиенту (подтверждение), и мастеру (новая запись).
         if (table === 'bookings' && result.rows[0]) {
           try {
             const b = result.rows[0];
-            const mRes = await pool.query('SELECT phone, name FROM masters WHERE id = $1', [b.master_id]);
-            if (mRes.rows[0]?.phone) {
-              const dRu = formatDateRu(b.date);
-              sendPushToPhone(mRes.rows[0].phone, {
+            const mRes = await pool.query(
+              'SELECT phone, name, studio_name, address FROM masters WHERE id = $1',
+              [b.master_id]
+            );
+            const master = mRes.rows[0];
+            const dRu = formatDateRu(b.date);
+            const tRu = formatTimeRu(b.time);
+            const placeName = master?.studio_name || master?.name || '';
+
+            // Push мастеру
+            if (master?.phone) {
+              sendPushToPhone(master.phone, {
                 title: 'Новая запись',
-                body: `${b.client_name || 'Клиент'} · ${dRu} в ${formatTimeRu(b.time)}`,
+                body: `${b.client_name || 'Клиент'} · ${dRu} в ${tRu}`,
                 type: 'booking_new',
+                masterId: b.master_id,
+                bookingId: b.id,
+              }).catch(() => {});
+            }
+
+            // Push клиенту-самому-себе («Вы записаны»)
+            if (b.client_phone) {
+              const placeTxt = placeName ? `Запись в ${placeName} · ` : '';
+              sendPushToPhone(b.client_phone, {
+                title: 'Вы записаны',
+                body: `${placeTxt}${dRu} в ${tRu}${master?.address ? '. Адрес: ' + master.address : ''}`,
+                type: 'booking_confirmed',
                 masterId: b.master_id,
                 bookingId: b.id,
               }).catch(() => {});
