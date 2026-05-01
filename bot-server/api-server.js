@@ -991,7 +991,7 @@ async function handleRequest(req, res) {
 
         const { filters, values, orderBy, limit, selectFields, offset } = parseFilters(query);
 
-        const MASTERS_PUBLIC_FIELDS = 'id, name, description, slug, bot_username, avatar_url, phone, whatsapp_url, welcome_text, is_active, created_at, yandex_maps_url, address, studio_name';
+        const MASTERS_PUBLIC_FIELDS = 'id, name, description, slug, bot_username, avatar_url, phone, whatsapp_url, welcome_text, is_active, created_at, yandex_maps_url, address, studio_name, booking_months, works_count, years_experience, promo_title, promo_text, maps_url';
         const baseSelect = (authLevel !== 'service' && table === 'masters')
           ? MASTERS_PUBLIC_FIELDS
           : '*';

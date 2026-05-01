@@ -5324,7 +5324,10 @@ async function wizardNext(container) {
     nextBtn && (nextBtn.disabled = true);
     try {
       const data = await loadMpDayBookings(wizardState.date);
-      const booked = (data ? data.bookings || [] : []).map(b => b.time ? b.time.substring(0, 5) : '');
+      // Только активные статусы блокируют слот. Cancelled/no_show — слот свободен.
+      const booked = (data ? data.bookings || [] : [])
+        .filter(b => b.status === 'confirmed' || b.status === 'pending')
+        .map(b => b.time ? b.time.substring(0, 5) : '');
       wizardState.slotsBusy = booked;
       // Генерируем слоты из расписания мастера
       const schedRows = state.masterSchedule || await loadAllSchedule(CURRENT_MASTER_ID) || [];
