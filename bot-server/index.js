@@ -709,7 +709,7 @@ async function checkNewBookings() {
             master_id: booking.master_id,
             type: 'new_booking',
             title: '📋 Новая запись: ' + serviceName,
-            body: '👤 ' + (booking.client_name || 'Клиент') + ' · ' + formatDateRu(booking.date) + ' в ' + timeShort + (booking.price ? ' · ' + booking.price + ' ₽' : ''),
+            body: '👤 ' + (booking.client_name || 'Клиент') + (booking.client_phone ? ' · ' + booking.client_phone : '') + '\n📅 ' + formatDateRu(booking.date) + ' в ' + timeShort + (booking.price ? ' · ' + booking.price + ' ₽' : ''),
             booking_id: booking.id,
           });
         }

@@ -654,7 +654,10 @@ async function handleRequest(req, res) {
       const serviceName = svcCheck.rows[0].name;
 
       const slotCheck = await pool.query(
-        'SELECT id FROM bookings WHERE master_id = $1 AND date = $2 AND time = $3 LIMIT 1',
+        `SELECT id FROM bookings
+         WHERE master_id = $1 AND date = $2 AND time = $3
+           AND status IN ('confirmed', 'pending')
+         LIMIT 1`,
         [masterId, date, time]
       );
       if (slotCheck.rows.length) { sendError(res, 'Slot already booked', 409); return; }
