@@ -760,9 +760,11 @@ async function loadAllData() {
 
   // 2. Загружаем все данные параллельно (быстрее!)
   const today = formatDateKey(new Date());
-  const twoWeeks = new Date();
-  twoWeeks.setDate(twoWeeks.getDate() + 14);
-  const toDate = formatDateKey(twoWeeks);
+  // Горизонт записи определяется настройкой мастера (booking_months, по умолчанию 1 месяц = 30 дней)
+  const horizonDays = ((master.booking_months || 1) * 30);
+  const horizonDate = new Date();
+  horizonDate.setDate(horizonDate.getDate() + horizonDays);
+  const toDate = formatDateKey(horizonDate);
 
   const [categories, services, scheduleRows, overrides, bookedSlots] = await Promise.all([
     loadCategories(master.id),
@@ -796,6 +798,7 @@ async function loadAllData() {
       address: master.address || '',
       maps_url: master.maps_url || '',
       studio_name: master.studio_name || '',
+      booking_months: master.booking_months || 1,
     },
     categories: categories.map(c => ({
       id: c.id,

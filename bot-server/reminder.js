@@ -67,7 +67,7 @@ async function checkReminders() {
 
       const subsRes = await pool.query(
         `SELECT endpoint, p256dh, auth FROM push_subscriptions
-         WHERE right(regexp_replace(user_phone, '\\D', '', 'g'), 10) = $1`,
+         WHERE right(regexp_replace(user_phone, '[^0-9]', '', 'g'), 10) = $1`,
         [phoneNorm]
       );
 

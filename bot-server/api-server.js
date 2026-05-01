@@ -42,7 +42,7 @@ async function sendPushToPhone(phone, { title, body, type = 'info', masterId = n
     // 2. Рассылаем web-push всем подпискам с этим телефоном (или нормализованным)
     const subs = await pool.query(
       `SELECT endpoint, p256dh, auth FROM push_subscriptions
-       WHERE right(regexp_replace(user_phone, '\\D', '', 'g'), 10) = $1`,
+       WHERE right(regexp_replace(user_phone, '[^0-9]', '', 'g'), 10) = $1`,
       [phoneNorm]
     );
     const payload = JSON.stringify({ title, body, data: { type, masterId, bookingId, ...(data || {}) } });
@@ -155,7 +155,7 @@ async function getMasterByPhone(phone) {
   if (normalized.length !== 10) return null;
   const result = await pool.query(
     `SELECT id FROM masters
-     WHERE right(regexp_replace(phone, '\\D', '', 'g'), 10) = $1
+     WHERE right(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = $1
      LIMIT 1`,
     [normalized]
   );
@@ -397,7 +397,7 @@ async function handleRequest(req, res) {
         const masterResult = await pool.query(
           `SELECT id, phone, name, slug, master_code, is_active
            FROM masters
-           WHERE right(regexp_replace(phone, '\\D', '', 'g'), 10) = $1`,
+           WHERE right(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = $1`,
           [normalized]
         );
         if (masterResult.rows.length === 0 || masterResult.rows[0].master_code !== body.code.trim()) {
@@ -721,6 +721,21 @@ async function handleRequest(req, res) {
         }).catch(() => {});
       }
 
+      // Push мастеру о новой ручной записи
+      {
+        const mRes2 = await pool.query('SELECT phone FROM masters WHERE id = $1', [masterId]);
+        const masterPhone = mRes2.rows[0]?.phone;
+        if (masterPhone) {
+          sendPushToPhone(masterPhone, {
+            title: 'Новая запись',
+            body: `Услуга: ${serviceName}\nКлиент: ${client_name}${client_phone ? ', ' + client_phone : ''}\nДата: ${formatDateRu(date)}, ${formatTimeRu(time)}`,
+            type: 'booking_new',
+            masterId,
+            bookingId: booking.id,
+          }).catch(() => {});
+        }
+      }
+
       sendJSON(res, booking, 201);
     } catch (err) {
       console.error('bookings/manual error:', err.message, err.code, err.constraint);
@@ -822,7 +837,7 @@ async function handleRequest(req, res) {
         const cRes = await pool.query(
           `SELECT id, COALESCE(bonus_balance, 0) AS bonus_balance FROM clients
            WHERE master_id = $1
-             AND right(regexp_replace(phone, '\\D', '', 'g'), 10) = $2
+             AND right(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = $2
            LIMIT 1`,
           [masterId, phoneNorm]
         );
@@ -1004,7 +1019,7 @@ async function handleRequest(req, res) {
               sendError(res, 'Unauthorized', 401); return;
             }
             const phoneNorm = String(jwtUser.phone).replace(/\D/g, '').slice(-10);
-            filters.push(`right(regexp_replace("user_phone", '\\D', '', 'g'), 10) = $${values.length + 1}`);
+            filters.push(`right(regexp_replace("user_phone", '[^0-9]', '', 'g'), 10) = $${values.length + 1}`);
             values.push(phoneNorm);
           }
         }
@@ -1096,9 +1111,15 @@ async function handleRequest(req, res) {
 
             // Push мастеру
             if (master?.phone) {
+              // Получаем название услуги для push
+              let svcNameForPush = '';
+              try {
+                const svcRes = await pool.query('SELECT name FROM services WHERE id = $1', [b.service_id]);
+                svcNameForPush = svcRes.rows[0]?.name || '';
+              } catch (_) {}
               sendPushToPhone(master.phone, {
                 title: 'Новая запись',
-                body: `${b.client_name || 'Клиент'} · ${dRu} в ${tRu}`,
+                body: `Услуга: ${svcNameForPush}\nКлиент: ${b.client_name || 'Клиент'}${b.client_phone ? ', ' + b.client_phone : ''}\nДата: ${dRu}, ${tRu}`,
                 type: 'booking_new',
                 masterId: b.master_id,
                 bookingId: b.id,
@@ -1159,7 +1180,7 @@ async function handleRequest(req, res) {
             } else if (jwtUser.phone) {
               const phoneNorm = String(jwtUser.phone).replace(/\D/g, '').slice(-10);
               filterValues.push(phoneNorm);
-              filters.push(`right(regexp_replace("client_phone", '\\D', '', 'g'), 10) = $${filterValues.length}`);
+              filters.push(`right(regexp_replace("client_phone", '[^0-9]', '', 'g'), 10) = $${filterValues.length}`);
             } else {
               sendError(res, 'Forbidden', 403); return;
             }
@@ -1172,7 +1193,7 @@ async function handleRequest(req, res) {
             if (!jwtUser.phone) { sendError(res, 'Forbidden', 403); return; }
             const phoneNorm = String(jwtUser.phone).replace(/\D/g, '').slice(-10);
             filterValues.push(phoneNorm);
-            filters.push(`right(regexp_replace("user_phone", '\\D', '', 'g'), 10) = $${filterValues.length}`);
+            filters.push(`right(regexp_replace("user_phone", '[^0-9]', '', 'g'), 10) = $${filterValues.length}`);
           }
         }
 
@@ -1247,7 +1268,7 @@ async function handleRequest(req, res) {
             } else if (jwtUserDel.phone) {
               const phoneNorm = String(jwtUserDel.phone).replace(/\D/g, '').slice(-10);
               delValues.push(phoneNorm);
-              delFilters.push(`right(regexp_replace("client_phone", '\\D', '', 'g'), 10) = $${delValues.length}`);
+              delFilters.push(`right(regexp_replace("client_phone", '[^0-9]', '', 'g'), 10) = $${delValues.length}`);
             } else {
               sendError(res, 'Forbidden', 403); return;
             }

@@ -5009,13 +5009,14 @@ function renderWizardStepService() {
 }
 
 function renderWizardStepDate() {
-  // Используем mp-calendar с ограничениями: min = завтра, max = сегодня + 30
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // min = сегодня, max = сегодня + booking_months*30
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const horizonDays = ((MASTER && MASTER.booking_months) || 1) * 30;
   const maxDate = new Date();
-  maxDate.setDate(maxDate.getDate() + 30);
+  maxDate.setDate(maxDate.getDate() + horizonDays);
 
-  const now = state.wizardCalendarMonth || tomorrow;
+  const now = state.wizardCalendarMonth || today;
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthName = new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
@@ -5037,7 +5038,7 @@ function renderWizardStepDate() {
     const dateObj = new Date(year, month, d);
     dateObj.setHours(0, 0, 0, 0);
     const dateKey = formatDateKey(dateObj);
-    const isDisabled = dateObj < tomorrow || dateObj > maxDate;
+    const isDisabled = dateObj < today || dateObj > maxDate;
     const isSelected = dateKey === wizardState.date;
     let cls = 'mp-calendar-day';
     if (isDisabled) cls += ' disabled';
@@ -5307,11 +5308,10 @@ async function wizardNext(container) {
 
   if (step === 2) {
     if (!wizardState.service) { showToast('Выберите услугу'); return; }
-    // Инициализируем месяц для шага 3 — завтра
+    // Инициализируем месяц для шага 3 — начиная с сегодня
     if (!state.wizardCalendarMonth) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      state.wizardCalendarMonth = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1);
+      const todayInit = new Date();
+      state.wizardCalendarMonth = new Date(todayInit.getFullYear(), todayInit.getMonth(), 1);
     }
     wizardState.step = 3;
     refreshWizardContent(container);
@@ -5336,6 +5336,15 @@ async function wizardNext(container) {
         wizardState.slotsAll = generateTimeSlots(row.start_time.substring(0, 5), row.end_time.substring(0, 5), row.slot_interval || 30);
       } else {
         wizardState.slotsAll = generateTimeSlots('09:00', '20:00', 30);
+      }
+      // Если мастер записывает на сегодня — скрываем уже прошедшие слоты
+      const todayKey = formatDateKey(new Date());
+      if (wizardState.date === todayKey) {
+        const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+        wizardState.slotsAll = wizardState.slotsAll.filter(t => {
+          const [hh, mm] = t.split(':').map(Number);
+          return hh * 60 + mm > nowMinutes;
+        });
       }
     } catch (e) {
       wizardState.slotsBusy = [];
@@ -5522,6 +5531,14 @@ function renderMasterProfileNew() {
 
       <label class="admin-label">Код доступа к панели мастера</label>
       <input type="text" id="profileCode" class="admin-input" value="${(m.master_code || '').replace(/"/g, '&quot;')}" placeholder="4 цифры" maxlength="4" />
+
+      <label class="admin-label">На сколько месяцев вперёд показывать запись клиентам</label>
+      <select id="profileBookingMonths" class="admin-input">
+        <option value="1" ${(m.booking_months || 1) === 1 ? 'selected' : ''}>1 месяц (30 дней)</option>
+        <option value="2" ${(m.booking_months || 1) === 2 ? 'selected' : ''}>2 месяца (60 дней)</option>
+        <option value="3" ${(m.booking_months || 1) === 3 ? 'selected' : ''}>3 месяца (90 дней)</option>
+        <option value="6" ${(m.booking_months || 1) === 6 ? 'selected' : ''}>6 месяцев (180 дней)</option>
+      </select>
     </div>
 
     <div class="mp-settings-group">
@@ -5708,6 +5725,7 @@ function bindMasterPanelNewEvents(container) {
             yandex_maps_url: container.querySelector('#profileYandexMaps')?.value.trim(),
             address: container.querySelector('#profileAddress')?.value.trim(),
             studio_name: container.querySelector('#profileStudioName')?.value.trim(),
+            booking_months: parseInt(container.querySelector('#profileBookingMonths')?.value || '1', 10) || 1,
           };
           const master_code = container.querySelector('#profileCode')?.value.trim();
           if (master_code && master_code.length === 4) data.master_code = master_code;
