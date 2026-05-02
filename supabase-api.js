@@ -145,47 +145,58 @@ const API = {
     return true;
   },
 
-  // Загрузка файла на VPS — с auto-refresh JWT при 401
+  // Загрузка файла на VPS — простой линейный путь + retry при 401.
   async uploadFile(bucket, filePath, file) {
+    if (!file) return null;
     let auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-    if (!auth) {
+    if (!auth || !auth.access_token) {
       if (typeof alert === 'function') alert('Не загружено: вы не авторизованы. Войдите в кабинет мастера заново.');
       return null;
     }
+    const masterId = filePath.split('/')[0] || 'general';
+    // Сжимаем (Vercel rewrite cap ~4.5MB). Если сжатие упало — отправляем оригинал.
+    let compressed = file;
     try {
-      const masterId = filePath.split('/')[0] || 'general';
-      // Сжимаем фото перед отправкой (Vercel rewrite ограничивает body 4.5MB).
-      const compressed = await (typeof compressImage === 'function' ? compressImage(file).catch(() => file) : file);
+      if (typeof compressImage === 'function') {
+        compressed = await compressImage(file);
+        if (!compressed) compressed = file;
+      }
+    } catch { compressed = file; }
 
-      // Helper для построения multipart-запроса (FormData нельзя переиспользовать после fetch — пересобираем)
-      const buildAndSend = async () => {
-        const fd = new FormData();
-        fd.append('file', compressed, file.name || 'photo.jpg');
-        const tok = (typeof getStoredAuth === 'function' ? getStoredAuth() : null)?.access_token || auth.access_token;
-        return fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${tok}` },
-          body: fd,
-        });
-      };
+    const send = async (token) => {
+      const fd = new FormData();
+      // Имя обязательно, иначе busboy на бэке не примет файл и вернёт "No file received"
+      fd.append('file', compressed, file.name || 'photo.jpg');
+      return fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd,
+      });
+    };
 
-      let res = await buildAndSend();
-      // Auto-refresh при 401 (access_token истёк, refresh_token живёт 30 дней)
+    try {
+      let res = await send(auth.access_token);
       if (res.status === 401 && typeof refreshToken === 'function') {
         const ok = await refreshToken();
-        if (ok) res = await buildAndSend();
+        if (ok) {
+          const fresh = (typeof getStoredAuth === 'function' ? getStoredAuth() : null);
+          if (fresh && fresh.access_token) res = await send(fresh.access_token);
+        }
       }
       if (!res.ok) {
-        const errText = await res.text().catch(() => res.status);
+        const errText = await res.text().catch(() => String(res.status));
         console.error('Upload failed:', errText);
-        if (typeof alert === 'function') alert('Не удалось загрузить фото: ' + (res.status === 401 ? 'сессия истекла, войдите заново через ?page=master-login' : errText));
+        if (typeof alert === 'function') {
+          if (res.status === 401) alert('Сессия истекла. Войдите заново: ?page=master-login');
+          else alert('Не удалось загрузить фото: ' + errText);
+        }
         return null;
       }
       const data = await res.json();
       return data.url || null;
     } catch (err) {
-      console.error('Upload error:', err.message);
-      if (typeof alert === 'function') alert('Ошибка сети при загрузке фото: ' + err.message);
+      console.error('Upload error:', err && err.message);
+      if (typeof alert === 'function') alert('Ошибка сети при загрузке фото: ' + (err && err.message));
       return null;
     }
   },
