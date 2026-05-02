@@ -4047,12 +4047,42 @@ function urlBase64ToUint8Array(base64String) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'PUSH_CLICK') {
-      // Обновляем колокольчик
-      refreshNotifCount();
-      // Открываем панель уведомлений
-      toggleNotificationPanel();
+      const action = event.data.action;
+      const bookingId = event.data.data?.booking_id;
+      if (action && bookingId) {
+        handlePushAction(action, bookingId);
+      } else {
+        refreshNotifCount();
+        toggleNotificationPanel();
+      }
     }
   });
+}
+
+// Обработка кнопок из push: ✅ Подтвердить / 🚫 Отменить / 📅 Перенести.
+// Вызывается из SW message handler (24h reminder с actions).
+async function handlePushAction(action, bookingId) {
+  try {
+    if (action === 'confirm') {
+      // Просто закрываем уведомление + помечаем reminder как прочитанный.
+      // Запись уже status=confirmed, ничего менять не нужно.
+      if (typeof showToast === 'function') showToast('Запись подтверждена ✅');
+    } else if (action === 'cancel') {
+      if (!confirm('Отменить запись?')) return;
+      await API.patch('bookings', `id=eq.${bookingId}`, { status: 'cancelled' });
+      if (typeof showToast === 'function') showToast('Запись отменена');
+      // Обновляем личный кабинет если он открыт
+      if (typeof reloadGlobalServices === 'function') await reloadGlobalServices();
+    } else if (action === 'reschedule') {
+      const picked = await (typeof pickDateTime === 'function' ? pickDateTime() : Promise.resolve(null));
+      if (!picked) return;
+      await API.patch('bookings', `id=eq.${bookingId}`, { date: picked.date, time: picked.time });
+      if (typeof showToast === 'function') showToast('Запись перенесена');
+    }
+    refreshNotifCount();
+  } catch (e) {
+    alert('Ошибка: ' + (e.message || e));
+  }
 }
 
 function createNotificationBell() {

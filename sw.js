@@ -1,5 +1,5 @@
 // Service Worker — Beauty Platform PWA
-const CACHE_NAME = 'beauty-v68';
+const CACHE_NAME = 'beauty-v69';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -69,13 +69,22 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'Beauty Platform';
+  const meta = data.data || {};
+  // Actions для 24h reminder клиенту: подтвердить / отменить / перенести.
+  // На iOS Safari кнопки видны только в установленной PWA (ограничение Apple).
+  let actions;
+  if (Array.isArray(meta.actions) && meta.actions.length) {
+    const labels = { confirm: '✅ Подтвердить', cancel: '🚫 Отменить', reschedule: '📅 Перенести' };
+    actions = meta.actions.slice(0, 3).map(a => ({ action: a, title: labels[a] || a }));
+  }
   const options = {
     body: data.body || '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
-    tag: data.data?.type || 'default',
+    tag: meta.type || 'default',
     renotify: true,
-    data: data.data || {},
+    data: meta,
+    ...(actions ? { actions } : {}),
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -83,7 +92,12 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
-  const targetUrl = data.url || '/';
+  const action = event.action;
+  let targetUrl = data.url || '/';
+  // Кнопки 24h reminder ведут на специальные deep-link страницы клиента.
+  if (action && data.booking_id) {
+    targetUrl = `/?action=${encodeURIComponent(action)}&booking=${encodeURIComponent(data.booking_id)}`;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
@@ -91,11 +105,11 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of windowClients) {
         if (client.url.includes(self.location.origin)) {
           client.focus();
-          client.postMessage({ type: 'PUSH_CLICK', data });
+          client.postMessage({ type: 'PUSH_CLICK', data, action });
           return;
         }
       }
-      // PWA не открыта — открываем url из data (Яндекс.Карты или главная)
+      // PWA не открыта — открываем url
       return clients.openWindow(targetUrl);
     })
   );

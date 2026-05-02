@@ -703,13 +703,36 @@ async function handleRequest(req, res) {
         if (nameSearch.rows.length) clientId = nameSearch.rows[0].id;
       }
 
-      const bookingResult = await pool.query(
-        `INSERT INTO bookings
-           (master_id, service_id, client_tg_id, client_name, client_phone, date, time, duration, price, status, notes, created_at)
-         VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, 'confirmed', $9, NOW())
-         RETURNING *`,
-        [masterId, service_id, client_name, client_phone || null, date, time, duration, price, notes || null]
-      );
+      // INSERT, при duplicate (UNIQUE master_id+date+time) — UPDATE существующей
+      // отменённой/no_show записи на confirmed с новыми данными (re-book одного слота).
+      let bookingResult;
+      try {
+        bookingResult = await pool.query(
+          `INSERT INTO bookings
+             (master_id, service_id, client_tg_id, client_name, client_phone, date, time, duration, price, status, notes, created_at)
+           VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, 'confirmed', $9, NOW())
+           RETURNING *`,
+          [masterId, service_id, client_name, client_phone || null, date, time, duration, price, notes || null]
+        );
+      } catch (e) {
+        if (e.code === '23505') {
+          // Слот занят на DB-уровне. Если та запись отменена — реактивируем её.
+          const reuse = await pool.query(
+            `UPDATE bookings
+             SET service_id = $3, client_name = $4, client_phone = $5,
+                 duration = $6, price = $7, status = 'confirmed',
+                 notes = $8, created_at = NOW(), bonus_credited = false,
+                 reminder_1h_sent_at = NULL
+             WHERE master_id = $1 AND date = $2 AND time = $9
+               AND status IN ('cancelled', 'no_show')
+             RETURNING *`,
+            [masterId, date, service_id, client_name, client_phone || null,
+             duration, price, notes || null, time]
+          );
+          if (reuse.rows.length) bookingResult = reuse;
+          else { sendError(res, 'Slot already booked', 409); return; }
+        } else { throw e; }
+      }
       const booking = bookingResult.rows[0];
       booking.service_name = serviceName;
 
