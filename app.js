@@ -4388,11 +4388,19 @@ function showToast(message, duration) {
 }
 
 // --- Авторизованный fetch для мастера (JWT из getStoredAuth) ---
+// При 401 автоматически пробует refresh-токен и повторяет запрос.
 async function authFetch(path, options) {
-  const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-  const headers = Object.assign({ 'Content-Type': 'application/json' }, options && options.headers);
-  if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
-  const res = await fetch(API_BASE_URL + path, Object.assign({}, options, { headers }));
+  const buildReq = () => {
+    const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options && options.headers);
+    if (auth && auth.access_token) headers['Authorization'] = 'Bearer ' + auth.access_token;
+    return fetch(API_BASE_URL + path, Object.assign({}, options, { headers }));
+  };
+  let res = await buildReq();
+  if (res.status === 401 && typeof refreshToken === 'function') {
+    const ok = await refreshToken();
+    if (ok) res = await buildReq();
+  }
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
     throw new Error('HTTP ' + res.status + ': ' + errText);

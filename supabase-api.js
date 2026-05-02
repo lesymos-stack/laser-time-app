@@ -145,9 +145,9 @@ const API = {
     return true;
   },
 
-  // Загрузка файла на VPS
+  // Загрузка файла на VPS — с auto-refresh JWT при 401
   async uploadFile(bucket, filePath, file) {
-    const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
+    let auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
     if (!auth) {
       if (typeof alert === 'function') alert('Не загружено: вы не авторизованы. Войдите в кабинет мастера заново.');
       return null;
@@ -155,19 +155,30 @@ const API = {
     try {
       const masterId = filePath.split('/')[0] || 'general';
       // Сжимаем фото перед отправкой (Vercel rewrite ограничивает body 4.5MB).
-      // compressImage gracefully возвращает оригинал, если что-то не так.
       const compressed = await (typeof compressImage === 'function' ? compressImage(file).catch(() => file) : file);
-      const formData = new FormData();
-      formData.append('file', compressed, file.name || 'photo.jpg');
-      const res = await fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${auth.access_token}` },
-        body: formData,
-      });
+
+      // Helper для построения multipart-запроса (FormData нельзя переиспользовать после fetch — пересобираем)
+      const buildAndSend = async () => {
+        const fd = new FormData();
+        fd.append('file', compressed, file.name || 'photo.jpg');
+        const tok = (typeof getStoredAuth === 'function' ? getStoredAuth() : null)?.access_token || auth.access_token;
+        return fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${tok}` },
+          body: fd,
+        });
+      };
+
+      let res = await buildAndSend();
+      // Auto-refresh при 401 (access_token истёк, refresh_token живёт 30 дней)
+      if (res.status === 401 && typeof refreshToken === 'function') {
+        const ok = await refreshToken();
+        if (ok) res = await buildAndSend();
+      }
       if (!res.ok) {
         const errText = await res.text().catch(() => res.status);
         console.error('Upload failed:', errText);
-        if (typeof alert === 'function') alert('Не удалось загрузить фото: ' + (res.status === 401 ? 'сессия истекла, войдите заново' : errText));
+        if (typeof alert === 'function') alert('Не удалось загрузить фото: ' + (res.status === 401 ? 'сессия истекла, войдите заново через ?page=master-login' : errText));
         return null;
       }
       const data = await res.json();
