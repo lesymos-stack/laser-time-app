@@ -14,14 +14,14 @@
 // === REST API клиент ===
 
 // Сжатие изображения на клиенте перед загрузкой:
-// - max 1280px по большой стороне (для PWA достаточно)
-// - JPEG quality 0.82 → итог ~150-400KB
+// - max 1024px по большой стороне (для каталога услуг достаточно)
+// - JPEG quality 0.78 → итог ~80-250KB
 // - надёжный путь через <img> + canvas (работает в Safari/Chrome/Firefox/Edge)
-// - возвращает Blob (или оригинал если файл < 200KB или не картинка)
-async function compressImage(file, maxSide = 1280, quality = 0.82) {
+// - возвращает Blob (или оригинал если файл маленький / не картинка)
+// - если результат всё ещё > 2MB → второй проход с более жёстким сжатием
+async function compressImage(file, maxSide = 1024, quality = 0.78) {
   if (!file || !file.type || !file.type.startsWith('image/')) return file;
-  if (file.size < 200 * 1024) return file; // <200KB — не трогаем
-  // SVG не сжимаем canvas-ом
+  if (file.size < 100 * 1024) return file; // <100KB — не трогаем
   if (file.type === 'image/svg+xml') return file;
 
   const dataUrl = await new Promise((resolve, reject) => {
@@ -49,9 +49,20 @@ async function compressImage(file, maxSide = 1280, quality = 0.82) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, width, height);
   // PNG с прозрачностью теряет альфу при → JPEG, но для бьюти-фото это OK
-  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+  let blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
   if (!blob) return file;
-  // Если сжатие дало больше — оставляем оригинал (например файл уже сильно сжат)
+  // Гарантия что результат не больше 2MB (Vercel rewrite cap ~4.5MB,
+  // но иногда мы видим 'No file received' и на меньших размерах).
+  // Если результат всё ещё > 2MB → второй проход с более жёсткой компрессией.
+  if (blob.size > 2 * 1024 * 1024) {
+    const c2 = document.createElement('canvas');
+    const scale2 = Math.min(1, 800 / Math.max(width, height));
+    c2.width = Math.round(width * scale2);
+    c2.height = Math.round(height * scale2);
+    c2.getContext('2d').drawImage(img, 0, 0, c2.width, c2.height);
+    const b2 = await new Promise(res => c2.toBlob(res, 'image/jpeg', 0.7));
+    if (b2 && b2.size < blob.size) blob = b2;
+  }
   return blob.size < file.size ? blob : file;
 }
 
@@ -162,11 +173,17 @@ const API = {
         if (!compressed) compressed = file;
       }
     } catch { compressed = file; }
+    console.log('[upload] file:', file.name, file.type, file.size, '→ compressed:', compressed.type, compressed.size);
+    if (compressed.size > 4 * 1024 * 1024) {
+      if (typeof alert === 'function') alert('Фото слишком большое (' + Math.round(compressed.size/1024/1024) + ' МБ). Попробуй другое или уменьши его перед загрузкой.');
+      return null;
+    }
 
     const send = async (token) => {
       const fd = new FormData();
       // Имя обязательно, иначе busboy на бэке не примет файл и вернёт "No file received"
-      fd.append('file', compressed, file.name || 'photo.jpg');
+      const fileName = file.name || ('photo_' + Date.now() + '.jpg');
+      fd.append('file', compressed, fileName);
       return fetch(`${API_BASE_URL}/api/v1/upload/${masterId}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },

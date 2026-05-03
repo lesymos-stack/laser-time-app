@@ -3344,37 +3344,18 @@ function bindEvents(screenName, container) {
           saveCatBtn.disabled = true;
           saveCatBtn.textContent = 'Сохраняем...';
 
-          // Загружаем фото если выбрано
+          // Загружаем фото если выбрано — через API.uploadFile (сжатие+retry+auto-refresh JWT)
           let photoUrl = state.editingCategory?.photo_url || null;
           const photoFile = container.querySelector('#catPhotoInput')?.files[0];
           if (photoFile) {
-            try {
-              const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-              // Сжимаем перед отправкой (Vercel rewrite limit 4.5MB)
-              const compressed = await (typeof compressImage === 'function' ? compressImage(photoFile).catch(() => photoFile) : photoFile);
-              const formData = new FormData();
-              formData.append('file', compressed, photoFile.name || 'photo.jpg');
-              const uploadRes = await fetch(`${API_BASE_URL}/api/v1/upload/${CURRENT_MASTER_ID}`, {
-                method: 'POST',
-                headers: auth ? { 'Authorization': `Bearer ${auth.access_token}` } : {},
-                body: formData,
-              });
-              if (uploadRes.ok) {
-                const uploadData = await uploadRes.json();
-                photoUrl = uploadData.url;
-              } else {
-                const errText = await uploadRes.text().catch(() => uploadRes.status);
-                alert('Не удалось загрузить фото: ' + errText);
-                saveCatBtn.disabled = false;
-                saveCatBtn.textContent = state.editingCategory ? 'Сохранить' : 'Создать категорию';
-                return;
-              }
-            } catch(e) {
-              alert('Ошибка загрузки фото: ' + e.message);
+            const fileName = `${CURRENT_MASTER_ID}/${Date.now()}_${Math.random().toString(36).slice(2)}_cat.jpg`;
+            const url = await API.uploadFile('photos', fileName, photoFile);
+            if (!url) {
               saveCatBtn.disabled = false;
               saveCatBtn.textContent = state.editingCategory ? 'Сохранить' : 'Создать категорию';
               return;
             }
+            photoUrl = url;
           }
 
           const data = {
