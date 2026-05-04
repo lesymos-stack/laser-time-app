@@ -84,28 +84,8 @@ async function refreshToken() {
 }
 
 // --- API с авторизацией ---
-
-async function authFetch(url, options = {}) {
-  let auth = getStoredAuth();
-  if (!auth) return null;
-
-  options.headers = options.headers || {};
-  options.headers['Authorization'] = `Bearer ${auth.access_token}`;
-
-  let res = await fetch(url, options);
-
-  // Если 401 — пробуем обновить токен
-  if (res.status === 401) {
-    const refreshed = await refreshToken();
-    if (refreshed) {
-      auth = getStoredAuth();
-      options.headers['Authorization'] = `Bearer ${auth.access_token}`;
-      res = await fetch(url, options);
-    }
-  }
-
-  return res;
-}
+// authFetch определён в app.js (поднимается позже и перетирает эту функцию).
+// Здесь оставлен только refreshToken() для использования из других модулей.
 
 // --- Отправка OTP ---
 

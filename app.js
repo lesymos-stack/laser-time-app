@@ -5357,7 +5357,10 @@ async function wizardNext(container) {
       if (row) {
         wizardState.slotsAll = generateTimeSlots(row.start_time.substring(0, 5), row.end_time.substring(0, 5), row.slot_interval || 30);
       } else {
-        wizardState.slotsAll = generateTimeSlots('09:00', '20:00', 30);
+        // У мастера нет рабочего расписания на этот день недели — слотов нет.
+        // Раньше генерили фантомные 09-20, мастер записывал клиента вне рабочих часов.
+        wizardState.slotsAll = [];
+        wizardState.noSchedule = true;
       }
       // Если мастер записывает на сегодня — скрываем уже прошедшие слоты
       const todayKey = formatDateKey(new Date());

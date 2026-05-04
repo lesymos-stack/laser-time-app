@@ -563,16 +563,12 @@ async function updateService(serviceId, data) {
 }
 
 // Удалить услугу — пробуем hard-delete, при FK violation падаем в soft-delete (is_active=false).
-// FK violation возникает если на услугу есть booking — тогда нельзя удалить физически.
+// API.delete возвращает false при не-2xx ответе (не throw), поэтому ловим именно false.
 async function deleteService(serviceId) {
-  try {
-    return await API.delete('services', `id=eq.${serviceId}`);
-  } catch (e) {
-    if (String(e?.message || '').includes('409') || String(e?.message || '').toLowerCase().includes('записи')) {
-      return await API.patch('services', `id=eq.${serviceId}`, { is_active: false });
-    }
-    throw e;
-  }
+  const ok = await API.delete('services', `id=eq.${serviceId}`);
+  if (ok) return true;
+  // Hard delete не прошёл (скорее всего 23503 FK от bookings) → soft-delete
+  return await API.patch('services', `id=eq.${serviceId}`, { is_active: false });
 }
 
 // Загрузить фото услуги
@@ -599,16 +595,11 @@ async function updateCategory(categoryId, data) {
   return API.patch('categories', `id=eq.${categoryId}`, data);
 }
 
-// Удалить категорию — попытка hard-delete, при FK fallback в soft-delete.
+// Удалить категорию — hard-delete или soft-delete fallback (API.delete возвращает false, не throw).
 async function deleteCategory(categoryId) {
-  try {
-    return await API.delete('categories', `id=eq.${categoryId}`);
-  } catch (e) {
-    if (String(e?.message || '').includes('409') || String(e?.message || '').toLowerCase().includes('категори')) {
-      return await API.patch('categories', `id=eq.${categoryId}`, { is_active: false });
-    }
-    throw e;
-  }
+  const ok = await API.delete('categories', `id=eq.${categoryId}`);
+  if (ok) return true;
+  return await API.patch('categories', `id=eq.${categoryId}`, { is_active: false });
 }
 
 // === Абонементы ===
@@ -836,6 +827,7 @@ async function loadAllData() {
       promo_text: master.promo_text || '',
       address: master.address || '',
       maps_url: master.maps_url || '',
+      yandex_maps_url: master.yandex_maps_url || '',
       studio_name: master.studio_name || '',
       booking_months: master.booking_months || 1,
     },
@@ -902,8 +894,18 @@ async function markBookingRemindersRead(bookingId) {
 
 async function markAllNotificationsRead() {
   const auth = typeof getStoredAuth === 'function' ? getStoredAuth() : null;
-  if (!auth) return;
-  const phone = JSON.parse(atob(auth.access_token.split('.')[1])).phone;
+  if (!auth || !auth.access_token) return;
+  let phone;
+  try {
+    const parts = auth.access_token.split('.');
+    if (parts.length < 2) return;
+    // base64url → base64 (заменяем символы)
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    phone = JSON.parse(atob(b64)).phone;
+  } catch {
+    return; // невалидный токен — пропускаем без падения
+  }
+  if (!phone) return;
   return API.patch('notifications', `user_phone=eq.${phone}&read=eq.false`, { read: true });
 }
 
