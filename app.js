@@ -57,8 +57,20 @@ function __showFatalError(label, err) {
     document.title = 'ERR: ' + ((err && err.message) || err);
   }
 }
-window.addEventListener('error', (e) => __showFatalError('JavaScript error', e.error || e.message));
-window.addEventListener('unhandledrejection', (e) => __showFatalError('Promise rejection', e.reason));
+// Безобидные ошибки внутри in-app браузеров (ВКонтакте, Instagram, Telegram WebView)
+// и Service Worker quirks — НЕ показываем фатальный экран, только в console.
+function __isBenignError(err) {
+  const msg = String((err && err.message) || err || '');
+  return /newestWorker|ServiceWorker|sw\.js|update.+native code|Load failed/i.test(msg);
+}
+window.addEventListener('error', (e) => {
+  if (__isBenignError(e.error || e.message)) { console.warn('benign:', e.message); return; }
+  __showFatalError('JavaScript error', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  if (__isBenignError(e.reason)) { console.warn('benign rejection:', e.reason); return; }
+  __showFatalError('Promise rejection', e.reason);
+});
 
 const tg = window.Telegram?.WebApp;
 
@@ -125,11 +137,13 @@ const TAB_MAP = {
 document.addEventListener('DOMContentLoaded', async () => {
   initTelegram();
 
-  // Принудительно обновляем SW при каждом визите
+  // Принудительно обновляем SW при каждом визите.
+  // Внутри in-app браузеров (ВКонтакте, Instagram, Telegram) reg.update() может
+  // упасть с "newestWorker is null" — это не критично, ловим тихо.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistration().then(reg => {
-      if (reg) reg.update();
-    });
+      if (reg) return reg.update();
+    }).catch(() => { /* swallow SW update errors */ });
   }
 
   // Очищаем данные если сменился мастер (другая ссылка)
